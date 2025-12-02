@@ -1,0 +1,16 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.env.*
+
+# Flutter
+flutter/
+build/
+pubspec.lock
+.dart_tool/
+.packages
+
