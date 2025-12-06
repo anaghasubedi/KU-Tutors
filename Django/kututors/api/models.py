@@ -12,7 +12,8 @@ class Tutor(models.Model):
     accountnumber =models.CharField(max_length=20, default="Not Provided")
     bankqr = models.ImageField(upload_to='Tutor_profile/', null=True,blank=True)
     password = models.CharField(max_length=128, default="notset")
-
+    is_verified = models.BooleanField(default=False)
+    verification_code = models.CharField(max_length=6, blank=True, null=True)
 
     def __str__(self):
         return f"{self.name} - {self.subject}"
@@ -25,7 +26,8 @@ class Tutee(models.Model):
     semester = models.CharField(max_length=20)
     subjectreqd = models.CharField(max_length=50,default="Unknown")
     password = models.CharField(max_length=128, default="notset")
-
+    is_verified = models.BooleanField(default=False)
+    verification_code = models.CharField(max_length=6, blank=True, null=True)
 
     def __str__(self):
         return f"{self.name} - {self.semester}"
