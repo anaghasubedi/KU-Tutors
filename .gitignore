@@ -6,11 +6,3 @@ __pycache__/
 # Environment
 .env
 .env.*
-
-# Flutter
-flutter/
-build/
-pubspec.lock
-.dart_tool/
-.packages
-
