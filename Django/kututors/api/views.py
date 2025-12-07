@@ -2,6 +2,7 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Tutor, Tutee, Session
+from django.contrib.auth.hashers import check_password
 from .serializers import (
     TutorSerializer, TuteeSerializer, SessionSerializer,
     TutorSignupSerializer, TuteeSignupSerializer
@@ -95,3 +96,51 @@ class TuteeVerifyEmail(APIView):
             tutee.save()
             return Response({"message": "Email verified successfully"})
         return Response({"error": "Invalid verification code"}, status=status.HTTP_400_BAD_REQUEST)
+    
+class Tutorlogin(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        try:
+            tutor = Tutor.objects.get(email=email)
+        except Tutor.DoesNotExist:
+            return Response({"error": "Tutor not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check the password directly here
+        if check_password(password, tutor.password):
+            if tutor.is_verified:
+                return Response({
+                    "message": "Login successful",
+                    "email": tutor.email,
+                    "name": tutor.name
+                })
+            else:
+                return Response({"error": "Email not verified"}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
+       
+       
+       
+class Tuteelogin(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        try:
+            tutor = Tutor.objects.get(email=email)
+        except Tutor.DoesNotExist:
+            return Response({"error": "Tutor not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check the password directly here
+        if check_password(password, tutor.password):
+            if tutor.is_verified:
+                return Response({
+                    "message": "Login successful",
+                    "email": tutor.email,
+                    "name": tutor.name
+                })
+            else:
+                return Response({"error": "Email not verified"}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
