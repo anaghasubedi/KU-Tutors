@@ -9,7 +9,7 @@ class LoginPage extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF305E9D), // main background
+      backgroundColor: const Color(0xFF4A7AB8), // same as signup background
       body: Center(
         child: SingleChildScrollView(
           child: Container(
@@ -18,11 +18,11 @@ class LoginPage extends StatelessWidget {
             padding: EdgeInsets.symmetric(
                 horizontal: screenWidth * 0.05, vertical: screenHeight * 0.03),
             decoration: BoxDecoration(
-              color: const Color(0xCC3B5A8F), // bluish-gray container
+              color: const Color(0xFF8BA3C7), // same as signup card
               borderRadius: BorderRadius.circular(25),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
+                  color: Colors.black.withValues(alpha: 0.25),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -35,17 +35,18 @@ class LoginPage extends StatelessWidget {
                 // Logo
                 Image.asset(
                   'assets/images/ku_logo.png',
-                  height: screenHeight * 0.32, // bigger logo
+                  height: screenHeight * 0.32,
                   fit: BoxFit.contain,
                 ),
-                SizedBox(height: screenHeight * 0.012), // reduced space
+                SizedBox(height: screenHeight * 0.012),
 
                 // Email field
                 TextField(
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Colors.white.withValues(alpha: 0.85),
                     hintText: 'Email',
+                    hintStyle: TextStyle(color: Colors.grey[600]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(15),
                       borderSide: BorderSide.none,
@@ -62,8 +63,9 @@ class LoginPage extends StatelessWidget {
                   obscureText: true,
                   decoration: InputDecoration(
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Colors.white.withValues(alpha: 0.85),
                     hintText: 'Password',
+                    hintStyle: TextStyle(color: Colors.grey[600]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(15),
                       borderSide: BorderSide.none,
@@ -94,7 +96,7 @@ class LoginPage extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF305E9D),
+                      backgroundColor: const Color(0xFF4A7AB8), // matches signup button
                       foregroundColor: Colors.white,
                       elevation: 5,
                       padding: EdgeInsets.symmetric(
@@ -121,13 +123,13 @@ class LoginPage extends StatelessWidget {
                 ),
                 SizedBox(height: screenHeight * 0.008),
 
-                // Sign Up button (same style as Login)
+                // Sign Up button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF305E9D),
+                      backgroundColor: const Color(0xFF4A7AB8), // matches signup button
                       foregroundColor: Colors.white,
                       elevation: 5,
                       padding: EdgeInsets.symmetric(
@@ -146,7 +148,6 @@ class LoginPage extends StatelessWidget {
                   ),
                 ),
 
-                // Spacer at bottom to match top spacing
                 SizedBox(height: screenHeight * 0.03),
               ],
             ),
