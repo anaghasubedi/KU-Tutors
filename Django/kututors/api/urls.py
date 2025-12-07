@@ -2,7 +2,7 @@ from django.urls import path, include
 from .views import (
     TutorListCreate, TutorRetrieveUpdateDelete,
     TuteeListCreate, TuteeRetrieveUpdateDelete,
-    SessionListCreate, SessionRetrieveUpdateDelete
+    SessionListCreate, SessionRetrieveUpdateDelete,Tutorlogin,Tuteelogin
 )
 
 urlpatterns = [
@@ -12,4 +12,5 @@ urlpatterns = [
     path('tutees/<int:pk>/', TuteeRetrieveUpdateDelete.as_view(), name='tutee-detail'),
     path('sessions/', SessionListCreate.as_view(), name='session-list-create'),
     path('sessions/<int:pk>/', SessionRetrieveUpdateDelete.as_view(), name='session-detail'),
-]
+    path('tutor-login/', Tutorlogin.as_view(), name='tutor-login'),
+    path('tutee-login/', Tuteelogin.as_view(), name='tutor-login'),]
