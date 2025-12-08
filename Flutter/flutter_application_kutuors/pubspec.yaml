@@ -90,3 +90,12 @@ flutter:
 assets:
 assets/images/ku_logo.png
 
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.1.0
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.13.1
