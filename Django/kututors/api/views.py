@@ -2,7 +2,9 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Tutor, Tutee, Session
+from django.core.mail import send_mail
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth.tokens import default_token_generator
 from .serializers import (
     TutorSerializer, TuteeSerializer, SessionSerializer,
     TutorSignupSerializer, TuteeSignupSerializer
@@ -128,8 +130,8 @@ class Tuteelogin(APIView):
         password = request.data.get("password")
 
         try:
-            tutor = Tutor.objects.get(email=email)
-        except Tutor.DoesNotExist:
+            tutor = Tutee.objects.get(email=email)
+        except Tutee.DoesNotExist:
             return Response({"error": "Tutor not found"}, status=status.HTTP_404_NOT_FOUND)
 
         # Check the password directly here
@@ -144,3 +146,37 @@ class Tuteelogin(APIView):
                 return Response({"error": "Email not verified"}, status=status.HTTP_403_FORBIDDEN)
         else:
             return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
+        
+class ForgotPassword(APIView):
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"error": "Email is required"}, status=400)
+
+        # Try to find the user in Tutor or Tutee
+        user = None
+        user_type = None
+
+        try:
+            user = Tutor.objects.get(email=email)
+            user_type = "tutor"
+        except Tutor.DoesNotExist:
+            try:
+                user = Tutee.objects.get(email=email)
+                user_type = "tutee"
+            except Tutee.DoesNotExist:
+                return Response({"error": "User not found"}, status=404)
+
+        # Generate a token
+        token = default_token_generator.make_token(user)
+        reset_url = f"http://your-frontend-app/reset-password/{user_type}/{user.pk}/{token}/"
+
+        # Send email
+        send_mail(
+            subject="Reset your password",
+            message=f"Click the link to reset your password: {reset_url}",
+            from_email="no-reply@yourapp.com",
+            recipient_list=[user.email],
+        )
+
+        return Response({"message": "Password reset link sent"})
