@@ -10,6 +10,8 @@ class SignupPage extends StatefulWidget {
 
 class _SignupPageState extends State<SignupPage> {
   String? selectedRole;
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +40,7 @@ class _SignupPageState extends State<SignupPage> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'CREATE AN ACCOUNT',
+                        'CREATE AN\nACCOUNT',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 24,
@@ -56,9 +58,17 @@ class _SignupPageState extends State<SignupPage> {
                       const SizedBox(height: 12),
                       _buildRoleDropdown(),
                       const SizedBox(height: 12),
-                      _buildTextFieldWithIcon('Password', Icons.visibility_outlined),
+                      _buildPasswordField('Password', _isPasswordVisible, (visible) {
+                        setState(() {
+                          _isPasswordVisible = visible;
+                        });
+                      }),
                       const SizedBox(height: 12),
-                      _buildTextFieldWithIcon('Confirm Password', Icons.visibility_outlined),
+                      _buildPasswordField('Confirm Password', _isConfirmPasswordVisible, (visible) {
+                        setState(() {
+                          _isConfirmPasswordVisible = visible;
+                        });
+                      }),
                       const SizedBox(height: 24),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -190,6 +200,41 @@ class _SignupPageState extends State<SignupPage> {
     );
   }
 
+  Widget _buildPasswordField(String labelText, bool isVisible, Function(bool) onToggle) {
+    return SizedBox(
+      height: 44,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.85),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: TextField(
+          textAlign: TextAlign.center,
+          obscureText: !isVisible,
+          decoration: InputDecoration(
+            hintText: labelText,
+            hintStyle: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+            suffixIcon: IconButton(
+              icon: Icon(
+                isVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                color: Colors.grey[600],
+                size: 20,
+              ),
+              onPressed: () {
+                onToggle(!isVisible);
+              },
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTextField(String labelText) {
     return SizedBox(
       height: 44,
@@ -208,32 +253,6 @@ class _SignupPageState extends State<SignupPage> {
             ),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextFieldWithIcon(String labelText, IconData icon) {
-    return SizedBox(
-      height: 44,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.85),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: TextField(
-          textAlign: TextAlign.center,
-          obscureText: labelText.toLowerCase().contains('password'),
-          decoration: InputDecoration(
-            hintText: labelText,
-            hintStyle: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 14,
-            ),
-            suffixIcon: Icon(icon, color: Colors.grey[600], size: 20),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           ),
         ),
       ),
