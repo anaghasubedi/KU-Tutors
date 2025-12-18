@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/signup.dart';
+import 'screens/login.dart';
 
 void main() {
   runApp(const MyApp());
@@ -44,7 +44,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      home: const SignupPage(), // Signup screen is now used
+      home: const LoginPage(), // Login screen is now used
     );
   }
 }
