@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'screens/signup.dart';
+import 'screens/login.dart';
+import 'screens/forgot_password.dart';
+import 'screens/confirmation.dart';
 
 void main() {
   runApp(const MyApp());
@@ -43,8 +47,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-
-      home: const SignupPage(), // Signup screen is now used
+      home: const ForgotPasswordPage(), // Change this line to switch pages
     );
   }
 }
