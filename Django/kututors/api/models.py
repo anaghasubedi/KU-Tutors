@@ -9,7 +9,7 @@ class CustomUser(AbstractUser):
     
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     contact = models.CharField(max_length=10, null=True, blank=True)
-    is_verified = models.BooleanField(default=False)
+    is_verified = models.BooleanField(default=True)
     verification_code = models.CharField(max_length=6, blank=True, null=True)
     
     def __str__(self):
