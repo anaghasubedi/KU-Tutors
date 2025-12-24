@@ -1,94 +1,103 @@
 from rest_framework import serializers
-from .models import Tutor, Tutee, Session
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth import get_user_model
+from .models import TutorProfile, TuteeProfile, Session
 from django.core.mail import send_mail
 import random
 
-class TutorSerializer(serializers.ModelSerializer):
+User = get_user_model()
+
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Tutor
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'contact', 'is_verified']
+        read_only_fields = ['id', 'is_verified']
+
+class SignupSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True)
+    name = serializers.CharField(write_only=True)  # Flutter sends "Full Name"
+    phone_number = serializers.CharField(write_only=True, source='contact')  # Flutter sends "Phone no."
+    
+    class Meta:
+        model = User
+        fields = ['name', 'email', 'phone_number', 'password', 'confirm_password', 'role']
+    
+    def validate(self, data):
+        if data['password'] != data['confirm_password']:
+            raise serializers.ValidationError({"password": "Passwords do not match"})
+        return data
+    
+    def create(self, validated_data):
+        validated_data.pop('confirm_password')
+        name = validated_data.pop('name')
+        
+        # Generate 6-digit verification code
+        code = str(random.randint(100000, 999999))
+        
+        # Create username from email
+        username = validated_data['email'].split('@')[0]
+        
+        # Make username unique if it already exists
+        base_username = username
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base_username}{counter}"
+            counter += 1
+        
+        user = User.objects.create_user(
+            username=username,
+            email=validated_data['email'],
+            password=validated_data['password'],
+            first_name=name.split()[0] if name else '',
+            last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else '',
+            role=validated_data['role'],
+            contact=validated_data.get('contact', ''),
+            verification_code=code,
+            is_verified=False,
+        )
+        
+        # Create profile based on role
+        if user.role == 'Tutor':
+            TutorProfile.objects.create(user=user)
+        elif user.role == 'Tutee':
+            TuteeProfile.objects.create(user=user)
+        
+        # Send verification email
+        try:
+            subject = 'KU-Tutors Email Verification'
+            message = f'Hello {name},\n\nYour verification code is: {code}\n\nThank you!'
+            send_mail(subject, message, None, [user.email], fail_silently=True)
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+        
+        return user
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+class TutorProfileSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = TutorProfile
         fields = '__all__'
 
-class TuteeSerializer(serializers.ModelSerializer):
+class TuteeProfileSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    
     class Meta:
-        model = Tutee
+        model = TuteeProfile
         fields = '__all__'
 
 class SessionSerializer(serializers.ModelSerializer):
+    tutor = TutorProfileSerializer(read_only=True)
+    tutee = TuteeProfileSerializer(read_only=True)
+    
     class Meta:
         model = Session
         fields = '__all__'
 
-# --- Signup serializers ---
-class TutorSignupSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    confirm_password = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = Tutor
-        fields = [
-            'name', 'email', 'contact', 'semester', 'subject',
-            'subjectcode', 'available', 'accountnumber',
-            'bankqr', 'password', 'confirm_password'
-        ]
-    def validate(self, data):
-        if data['password'] != data['confirm_password']:
-            raise serializers.ValidationError("Passwords do not match!")
-        return data
-    def create(self, validated_data):
-        # Hash the password
-        validated_data.pop('confirm_password')  # remove before saving
-        raw_password = validated_data.pop('password')
-        validated_data['password'] = make_password(raw_password)
-
-        # Generate 6-digit verification code
-        code = str(random.randint(100000, 999999))
-        validated_data['verification_code'] = code
-        validated_data['is_verified'] = False
-
-        # Create tutor
-        tutor = Tutor.objects.create(**validated_data)
-
-        # Send verification code (prints to console in dev)
-        subject = 'KU-Tutors Email Verification'
-        message = f'Hello {tutor.name},\n\nYour verification code is: {code}\n\nThank you!'
-        recipient_list = [tutor.email]
-        send_mail(subject, message, None, recipient_list)
-
-        return tutor
-
-class TuteeSignupSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True)
-    confirm_password = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = Tutee
-        fields = [
-            'name', 'email', 'contact', 'semester',
-            'subjectreqd', 'password', 'confirm_password'
-            ]
-    def validate(self, data):
-        if data['password'] != data['confirm_password']:
-            raise serializers.ValidationError("Passwords do not match!")
-        return data
-    def create(self, validated_data):
-        # Hash the password
-        validated_data.pop('confirm_password')  # remove before saving
-        raw_password = validated_data.pop('password')
-        validated_data['password'] = make_password(raw_password)
-
-        # Generate 6-digit verification code
-        code = str(random.randint(100000, 999999))
-        validated_data['verification_code'] = code
-        validated_data['is_verified'] = False
-
-        # Create tutee
-        tutee = Tutee.objects.create(**validated_data)
-
-        # Send verification code (prints to console in dev)
-        subject = 'KU-Tutors Email Verification'
-        message = f'Hello {tutee.name},\n\nYour verification code is: {code}\n\nThank you!'
-        recipient_list = [tutee.email]
-        send_mail(subject, message, None, recipient_list)
-
-        return tutee
+class VerifyEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    verification_code = serializers.CharField(max_length=6)

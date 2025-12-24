@@ -1,17 +1,10 @@
-    from django.urls import path, include
-from .views import (
-    TutorListCreate, TutorRetrieveUpdateDelete,
-    TuteeListCreate, TuteeRetrieveUpdateDelete,
-    SessionListCreate, SessionRetrieveUpdateDelete,Tutorlogin,Tuteelogin,ForgotPassword
-)
+from django.urls import path
+from . import views
 
 urlpatterns = [
-    path('tutors/', TutorListCreate.as_view(), name='tutor-list-create'),
-    path('tutors/<int:pk>/', TutorRetrieveUpdateDelete.as_view(), name='tutor-detail'),
-    path('tutees/', TuteeListCreate.as_view(), name='tutee-list-create'),
-    path('tutees/<int:pk>/', TuteeRetrieveUpdateDelete.as_view(), name='tutee-detail'),
-    path('sessions/', SessionListCreate.as_view(), name='session-list-create'),
-    path('sessions/<int:pk>/', SessionRetrieveUpdateDelete.as_view(), name='session-detail'),
-    path('tutor-login/', Tutorlogin.as_view(), name='tutor-login'),
-    path('tutee-login/', Tuteelogin.as_view(), name='tutor-login'),
-     path('forgotpassword/', ForgotPassword.as_view(), name='forgot-password'),]
+    path('signup/', views.signup, name='signup'),
+    path('verify-email/', views.verify_email, name='verify_email'),
+    path('login/', views.login, name='login'),
+    path('logout/', views.logout, name='logout'),
+    path('profile/', views.get_user_profile, name='profile'),
+]
