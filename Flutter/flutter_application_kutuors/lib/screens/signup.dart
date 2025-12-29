@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_kutuors/services/api_service.dart';
 import 'login.dart';
-//import 'verify_email.dart';
+import 'verifyemail.dart'; // Changed from verifyemail.dart
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -107,12 +107,12 @@ class _SignupPageState extends State<SignupPage> {
       );
 
       // Navigate to email verification page
-      /*Navigator.pushReplacement(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => VerifyEmailPage(email: _emailController.text.trim()),
+          builder: (context) => const VerifyemailPage(),
         ),
-      );*/
+      );
 
     } catch (e) {
       if (!mounted) return;

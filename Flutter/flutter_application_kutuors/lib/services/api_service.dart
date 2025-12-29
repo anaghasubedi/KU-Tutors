@@ -3,11 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // IMPORTANT: Replace with your computer's local IP address
-  // Find it by running 'ipconfig' (Windows) or 'ifconfig' (Mac/Linux)
-  // Example: if your IP is 192.168.1.5, use 'http://192.168.1.5:8000'
-  static const String baseUrl = 'http://YOUR_LOCAL_IP:8000/api';
-  
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  //change the 10.0.2.2 part to laptop's IP for build in phone
+  //runserver using python manage.py runserver 0.0.0.0:8000 for connecting with backend
+
   // Login method
   static Future<Map<String, dynamic>> login(String email, String password) async {
     try {
