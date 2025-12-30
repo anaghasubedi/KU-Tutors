@@ -1,41 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_kutuors/services/api_service.dart';
-import 'reset_password_confirmation.dart';
+import 'login.dart';
 
-class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+class VerifySignupPage extends StatefulWidget {
+  final String email;
+  
+  const VerifySignupPage({super.key, required this.email});
 
   @override
-  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
+  State<VerifySignupPage> createState() => _VerifySignupPageState();
 }
 
-class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  final TextEditingController _emailController = TextEditingController();
+class _VerifySignupPageState extends State<VerifySignupPage> {
+  final TextEditingController _verificationCodeController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _verificationCodeController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSendCode() async {
-    // Validate email
-    if (_emailController.text.trim().isEmpty) {
+  Future<void> _handleVerification() async {
+    // Validate input
+    if (_verificationCodeController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter your email'),
+          content: Text('Please enter the verification code'),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
     }
 
-    // Validate email format
-    if (!_emailController.text.contains('@')) {
+    // Check if code is 6 digits
+    if (_verificationCodeController.text.trim().length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid email'),
+          content: Text('Verification code must be 6 digits'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -45,27 +47,26 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.forgotPassword(_emailController.text.trim());
+      final response = await ApiService.verifyEmail(
+        widget.email,
+        _verificationCodeController.text.trim(),
+      );
 
       if (!mounted) return;
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(response['message'] ?? 'Verification code sent to your email'),
+          content: Text(response['message'] ?? 'Email verified successfully!'),
           backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
         ),
       );
 
-      // Navigate to verification page
-      Navigator.push(
+      // Navigate to login page
+      Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (context) => ResetPasswordConfirmationPage(
-            email: _emailController.text.trim(),
-          ),
-        ),
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false, // Remove all previous routes
       );
 
     } catch (e) {
@@ -117,7 +118,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'FORGOT\nPASSWORD?',
+                      'CONFIRMATION',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 28,
@@ -126,37 +127,39 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         height: 1.2,
                       ),
                     ),
-                    SizedBox(height: screenHeight * 0.02),
+                    SizedBox(height: screenHeight * 0.03),
                     
-                    const Text(
-                      'Enter your email address and we\'ll send you a verification code',
+                    Text(
+                      "We've sent a confirmation code to\n${widget.email}",
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: const TextStyle(
+                        fontSize: 15,
                         color: Colors.white,
                         height: 1.4,
                       ),
                     ),
                     SizedBox(height: screenHeight * 0.04),
                     
-                    // Email field
+                    // Verification Code field
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: TextField(
-                        controller: _emailController,
+                        controller: _verificationCodeController,
                         textAlign: TextAlign.center,
-                        keyboardType: TextInputType.emailAddress,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
                         enabled: !_isLoading,
                         decoration: InputDecoration(
-                          hintText: 'Email',
+                          hintText: 'Enter the verification code',
                           hintStyle: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,
                           ),
                           border: InputBorder.none,
+                          counterText: '', // Hide character counter
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 14,
                             horizontal: 16,
@@ -166,7 +169,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     ),
                     SizedBox(height: screenHeight * 0.04),
                     
-                    // Send Code button
+                    // Verify button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -182,7 +185,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ),
                           disabledBackgroundColor: const Color(0xFF4A7AB8).withValues(alpha: 0.6),
                         ),
-                        onPressed: _isLoading ? null : _handleSendCode,
+                        onPressed: _isLoading ? null : _handleVerification,
                         child: _isLoading
                             ? SizedBox(
                                 height: screenWidth * 0.05,
@@ -193,27 +196,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 ),
                               )
                             : Text(
-                                'SEND CODE',
+                                'VERIFY',
                                 style: TextStyle(
                                   fontSize: screenWidth * 0.042,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.5,
                                 ),
                               ),
-                      ),
-                    ),
-                    SizedBox(height: screenHeight * 0.02),
-                    
-                    // Back to login button
-                    TextButton(
-                      onPressed: _isLoading ? null : () => Navigator.pop(context),
-                      child: const Text(
-                        'Back to Login',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          decoration: TextDecoration.underline,
-                        ),
                       ),
                     ),
                   ],

@@ -1,19 +1,56 @@
 import 'package:flutter/material.dart';
+import 'reset_password_new.dart';
 
-class VerifyemailPage extends StatefulWidget {
-  const VerifyemailPage({super.key});
+class ResetPasswordConfirmationPage extends StatefulWidget {
+  final String email;
+  
+  const ResetPasswordConfirmationPage({super.key, required this.email});
 
   @override
-  State<VerifyemailPage> createState() => _VerifyemailPageState();
+  State<ResetPasswordConfirmationPage> createState() => _ResetPasswordConfirmationPageState();
 }
 
-class _VerifyemailPageState extends State<VerifyemailPage> {
-  final TextEditingController _verificationCodeController = TextEditingController();
+class _ResetPasswordConfirmationPageState extends State<ResetPasswordConfirmationPage> {
+  final TextEditingController _codeController = TextEditingController();
 
   @override
   void dispose() {
-    _verificationCodeController.dispose();
+    _codeController.dispose();
     super.dispose();
+  }
+
+  void _handleVerifyCode() {
+    // Validate code
+    if (_codeController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter the verification code'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (_codeController.text.trim().length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification code must be 6 digits'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to new password page
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ResetPasswordNewPage(
+          email: widget.email,
+          verificationCode: _codeController.text.trim(),
+        ),
+      ),
+    );
   }
 
   @override
@@ -48,7 +85,7 @@ class _VerifyemailPageState extends State<VerifyemailPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'CONFIRMATION',
+                      'VERIFICATION\nCODE',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 28,
@@ -59,10 +96,10 @@ class _VerifyemailPageState extends State<VerifyemailPage> {
                     ),
                     SizedBox(height: screenHeight * 0.03),
                     
-                    const Text(
-                      "We've sent a confirmation code to your\nemail",
+                    Text(
+                      "We've sent a verification code to\n${widget.email}",
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 15,
                         color: Colors.white,
                         height: 1.4,
@@ -77,16 +114,18 @@ class _VerifyemailPageState extends State<VerifyemailPage> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: TextField(
-                        controller: _verificationCodeController,
+                        controller: _codeController,
                         textAlign: TextAlign.center,
                         keyboardType: TextInputType.number,
+                        maxLength: 6,
                         decoration: InputDecoration(
-                          hintText: 'Enter the verification code',
+                          hintText: 'Enter verification code',
                           hintStyle: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 14,
                           ),
                           border: InputBorder.none,
+                          counterText: '',
                           contentPadding: const EdgeInsets.symmetric(
                             vertical: 14,
                             horizontal: 16,
@@ -96,7 +135,7 @@ class _VerifyemailPageState extends State<VerifyemailPage> {
                     ),
                     SizedBox(height: screenHeight * 0.04),
                     
-                    // Verify button
+                    // Continue button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -111,12 +150,9 @@ class _VerifyemailPageState extends State<VerifyemailPage> {
                             borderRadius: BorderRadius.circular(24),
                           ),
                         ),
-                        onPressed: () {
-                          // Handle verification logic
-                          // Verify code and navigate to success page or show error
-                        },
+                        onPressed: _handleVerifyCode,
                         child: Text(
-                          'VERIFY',
+                          'CONTINUE',
                           style: TextStyle(
                             fontSize: screenWidth * 0.042,
                             fontWeight: FontWeight.bold,

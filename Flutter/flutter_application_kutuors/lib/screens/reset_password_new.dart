@@ -1,41 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_kutuors/services/api_service.dart';
-import 'reset_password_confirmation.dart';
+import 'login.dart';
 
-class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+class ResetPasswordNewPage extends StatefulWidget {
+  final String email;
+  final String verificationCode;
+  
+  const ResetPasswordNewPage({
+    super.key,
+    required this.email,
+    required this.verificationCode,
+  });
 
   @override
-  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
+  State<ResetPasswordNewPage> createState() => _ResetPasswordNewPageState();
 }
 
-class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  final TextEditingController _emailController = TextEditingController();
+class _ResetPasswordNewPageState extends State<ResetPasswordNewPage> {
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSendCode() async {
-    // Validate email
-    if (_emailController.text.trim().isEmpty) {
+  Future<void> _handleResetPassword() async {
+    // Validate passwords
+    if (_newPasswordController.text.isEmpty || _confirmPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter your email'),
+          content: Text('Please fill in all fields'),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
     }
 
-    // Validate email format
-    if (!_emailController.text.contains('@')) {
+    if (_newPasswordController.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid email'),
+          content: Text('Password must be at least 8 characters'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (_newPasswordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Passwords do not match'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -45,27 +65,28 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.forgotPassword(_emailController.text.trim());
+      final response = await ApiService.resetPassword(
+        email: widget.email,
+        verificationCode: widget.verificationCode,
+        newPassword: _newPasswordController.text,
+      );
 
       if (!mounted) return;
 
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(response['message'] ?? 'Verification code sent to your email'),
+          content: Text(response['message'] ?? 'Password reset successfully!'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 3),
         ),
       );
 
-      // Navigate to verification page
-      Navigator.push(
+      // Navigate to login page
+      Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (context) => ResetPasswordConfirmationPage(
-            email: _emailController.text.trim(),
-          ),
-        ),
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
       );
 
     } catch (e) {
@@ -117,7 +138,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      'FORGOT\nPASSWORD?',
+                      'NEW\nPASSWORD',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 28,
@@ -126,47 +147,35 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         height: 1.2,
                       ),
                     ),
+                    SizedBox(height: screenHeight * 0.04),
+                    
+                    // New Password field
+                    _buildPasswordField(
+                      controller: _newPasswordController,
+                      hintText: 'New Password',
+                      obscureText: _obscureNewPassword,
+                      onToggleVisibility: () {
+                        setState(() {
+                          _obscureNewPassword = !_obscureNewPassword;
+                        });
+                      },
+                    ),
                     SizedBox(height: screenHeight * 0.02),
                     
-                    const Text(
-                      'Enter your email address and we\'ll send you a verification code',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white,
-                        height: 1.4,
-                      ),
+                    // Confirm New Password field
+                    _buildPasswordField(
+                      controller: _confirmPasswordController,
+                      hintText: 'Confirm New Password',
+                      obscureText: _obscureConfirmPassword,
+                      onToggleVisibility: () {
+                        setState(() {
+                          _obscureConfirmPassword = !_obscureConfirmPassword;
+                        });
+                      },
                     ),
                     SizedBox(height: screenHeight * 0.04),
                     
-                    // Email field
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: TextField(
-                        controller: _emailController,
-                        textAlign: TextAlign.center,
-                        keyboardType: TextInputType.emailAddress,
-                        enabled: !_isLoading,
-                        decoration: InputDecoration(
-                          hintText: 'Email',
-                          hintStyle: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 14,
-                            horizontal: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: screenHeight * 0.04),
-                    
-                    // Send Code button
+                    // Reset Password button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -182,7 +191,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                           ),
                           disabledBackgroundColor: const Color(0xFF4A7AB8).withValues(alpha: 0.6),
                         ),
-                        onPressed: _isLoading ? null : _handleSendCode,
+                        onPressed: _isLoading ? null : _handleResetPassword,
                         child: _isLoading
                             ? SizedBox(
                                 height: screenWidth * 0.05,
@@ -193,7 +202,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 ),
                               )
                             : Text(
-                                'SEND CODE',
+                                'RESET PASSWORD',
                                 style: TextStyle(
                                   fontSize: screenWidth * 0.042,
                                   fontWeight: FontWeight.bold,
@@ -202,24 +211,50 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               ),
                       ),
                     ),
-                    SizedBox(height: screenHeight * 0.02),
-                    
-                    // Back to login button
-                    TextButton(
-                      onPressed: _isLoading ? null : () => Navigator.pop(context),
-                      child: const Text(
-                        'Back to Login',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String hintText,
+    required bool obscureText,
+    required VoidCallback onToggleVisibility,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.85),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        textAlign: TextAlign.center,
+        enabled: !_isLoading,
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 14,
+          ),
+          suffixIcon: IconButton(
+            icon: Icon(
+              obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+              color: Colors.grey[600],
+              size: 20,
+            ),
+            onPressed: onToggleVisibility,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 14,
+            horizontal: 16,
           ),
         ),
       ),

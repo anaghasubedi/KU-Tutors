@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  static const String baseUrl = 'http://192.168.1.80:8000/api';
   //change the 10.0.2.2 part to laptop's IP for build in phone
   //runserver using python manage.py runserver 0.0.0.0:8000 for connecting with backend
 
@@ -156,6 +156,64 @@ class ApiService {
       } else {
         final error = jsonDecode(response.body);
         throw Exception(error['error'] ?? 'Verification failed');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Forgot password method
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/forgot-password/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to send reset code');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Reset password method
+  static Future<Map<String, dynamic>> resetPassword({
+    required String email,
+    required String verificationCode,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/reset-password/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'verification_code': verificationCode,
+          'new_password': newPassword,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to reset password');
       }
     } catch (e) {
       if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
