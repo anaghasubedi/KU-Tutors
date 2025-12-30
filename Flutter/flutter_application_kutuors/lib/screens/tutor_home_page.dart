@@ -12,8 +12,20 @@ class TutorHomePage extends StatelessWidget {
       backgroundColor: const Color(0xFFF2F5FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFF305E9D),
-        centerTitle: true,
-        title: Image.asset('assets/images/ku_logo.png', height: h * 0.08),
+        title: Row(
+          children: [
+            Image.asset('assets/images/ku_logo.png', height: 50),
+            const SizedBox(width: 12),
+            const Text(
+              'KU Tutors',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: h * 0.02),
