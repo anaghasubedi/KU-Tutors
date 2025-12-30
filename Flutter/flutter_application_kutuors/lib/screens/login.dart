@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_kutuors/services/api_service.dart';
 import 'signup.dart';
+import 'forgot_password.dart';
 import 'tutor_home_page.dart';
 import 'tutee_home_page.dart';
 
@@ -14,7 +15,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  
+
   // Controllers
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -28,7 +29,8 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _handleLogin() async {
     // Validate input
-    if (_emailController.text.trim().isEmpty || _passwordController.text.isEmpty) {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill in all fields'),
@@ -69,7 +71,7 @@ class _LoginPageState extends State<LoginPage> {
 
       // Navigate based on user role
       final userRole = response['user']['role'];
-      
+
       if (userRole == 'Tutor') {
         Navigator.pushReplacement(
           context,
@@ -81,13 +83,12 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(builder: (context) => const TuteeHomePage()),
         );
       }
-      
+
       debugPrint('Login successful! Token: ${response['token']}');
       debugPrint('User: ${response['user']}');
-
     } catch (e) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceAll('Exception: ', '')),
@@ -115,7 +116,9 @@ class _LoginPageState extends State<LoginPage> {
             width: double.infinity,
             margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
             padding: EdgeInsets.symmetric(
-                horizontal: screenWidth * 0.05, vertical: screenHeight * 0.03),
+              horizontal: screenWidth * 0.05,
+              vertical: screenHeight * 0.03,
+            ),
             decoration: BoxDecoration(
               color: const Color(0xFF8BA3C7),
               borderRadius: BorderRadius.circular(25),
@@ -154,8 +157,9 @@ class _LoginPageState extends State<LoginPage> {
                       borderSide: BorderSide.none,
                     ),
                     contentPadding: EdgeInsets.symmetric(
-                        vertical: screenHeight * 0.018,
-                        horizontal: screenWidth * 0.04),
+                      vertical: screenHeight * 0.018,
+                      horizontal: screenWidth * 0.04,
+                    ),
                   ),
                 ),
                 SizedBox(height: screenHeight * 0.012),
@@ -172,7 +176,9 @@ class _LoginPageState extends State<LoginPage> {
                     hintStyle: TextStyle(color: Colors.grey[600]),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _isPasswordVisible ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        _isPasswordVisible
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
                         color: Colors.grey[600],
                         size: 20,
                       ),
@@ -187,24 +193,29 @@ class _LoginPageState extends State<LoginPage> {
                       borderSide: BorderSide.none,
                     ),
                     contentPadding: EdgeInsets.symmetric(
-                        vertical: screenHeight * 0.018,
-                        horizontal: screenWidth * 0.04),
+                      vertical: screenHeight * 0.018,
+                      horizontal: screenWidth * 0.04,
+                    ),
                   ),
                 ),
                 SizedBox(height: screenHeight * 0.008),
 
                 // Forgot Password
-                Align(
-                  alignment: Alignment.centerRight,
+              Align(
+                alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: _isLoading ? null : () {},
-                    child: const Text(
-                      'Forgot Password?',
-                      style: TextStyle(color: Colors.white),
-                    ),
+                    onPressed: _isLoading ? null : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+                      );
+                   },
+                  child: const Text(
+                   'Forgot Password?',
+                    style: TextStyle(color: Colors.white),
                   ),
                 ),
-                SizedBox(height: screenHeight * 0.018),
+              ),
 
                 // Login button
                 SizedBox(
@@ -216,11 +227,14 @@ class _LoginPageState extends State<LoginPage> {
                       foregroundColor: Colors.white,
                       elevation: 5,
                       padding: EdgeInsets.symmetric(
-                          vertical: screenHeight * 0.022),
+                        vertical: screenHeight * 0.022,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      disabledBackgroundColor: const Color(0xFF4A7AB8).withValues(alpha: 0.6),
+                      disabledBackgroundColor: const Color(
+                        0xFF4A7AB8,
+                      ).withValues(alpha: 0.6),
                     ),
                     child: _isLoading
                         ? SizedBox(
@@ -258,7 +272,9 @@ class _LoginPageState extends State<LoginPage> {
                         : () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => const SignupPage()),
+                              MaterialPageRoute(
+                                builder: (context) => const SignupPage(),
+                              ),
                             );
                           },
                     style: ElevatedButton.styleFrom(
@@ -266,11 +282,14 @@ class _LoginPageState extends State<LoginPage> {
                       foregroundColor: Colors.white,
                       elevation: 5,
                       padding: EdgeInsets.symmetric(
-                          vertical: screenHeight * 0.022),
+                        vertical: screenHeight * 0.022,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      disabledBackgroundColor: const Color(0xFF4A7AB8).withValues(alpha: 0.6),
+                      disabledBackgroundColor: const Color(
+                        0xFF4A7AB8,
+                      ).withValues(alpha: 0.6),
                     ),
                     child: Text(
                       'SIGN UP',

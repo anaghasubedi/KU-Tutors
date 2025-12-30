@@ -4,7 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, get_user_model
+from django.core.mail import send_mail
 from .serializers import SignupSerializer, LoginSerializer, UserSerializer, VerifyEmailSerializer
+import random
 
 User = get_user_model()
 
@@ -18,6 +20,12 @@ def signup(request):
     serializer = SignupSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+        
+        # Print verification code to console
+        print("=" * 50)
+        print(f"SIGNUP VERIFICATION CODE FOR: {user.email}")
+        print(f"CODE: {user.verification_code}")
+        print("=" * 50)
         
         return Response({
             'user': UserSerializer(user).data,
@@ -127,3 +135,66 @@ def get_user_profile(request):
     return Response({
         'user': UserSerializer(user).data
     }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def forgot_password(request):
+    """
+    Send password reset code to email
+    """
+    email = request.data.get('email')
+    if not email:
+        return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Generate 6-digit verification code
+    code = str(random.randint(100000, 999999))
+    user.verification_code = code
+    user.save()
+    
+    # ALWAYS print to console for development
+    print("=" * 50)
+    print(f"PASSWORD RESET CODE FOR: {email}")
+    print(f"CODE: {code}")
+    print("=" * 50)
+    
+    # Try to send email
+    try:
+        send_mail(
+            subject="Password Reset Code - KU Tutors",
+            message=f"Hello {user.first_name},\n\nYour password reset code is: {code}\n\nThank you!",
+            from_email=None,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+        print("Email sent successfully!")
+    except Exception as e:
+        print(f"Email sending failed: {str(e)}")
+    
+    return Response({'message': 'Verification code sent to your email'}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+    """
+    Reset password with verification code
+    """
+    email = request.data.get('email')
+    code = request.data.get('verification_code')
+    new_password = request.data.get('new_password')
+    
+    if not all([email, code, new_password]):
+        return Response({'error': 'All fields are required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = User.objects.get(email=email, verification_code=code)
+        user.set_password(new_password)
+        user.verification_code = None  # Clear the code
+        user.save()
+        return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        return Response({'error': 'Invalid verification code or email'}, status=status.HTTP_400_BAD_REQUEST)
