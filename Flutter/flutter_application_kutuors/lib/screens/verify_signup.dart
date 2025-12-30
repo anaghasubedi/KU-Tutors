@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_kutuors/services/api_service.dart';
-import 'login.dart';
+import 'tutor_home_page.dart';
+import 'tutee_home_page.dart';
 
 class VerifySignupPage extends StatefulWidget {
   final String email;
@@ -12,29 +13,27 @@ class VerifySignupPage extends StatefulWidget {
 }
 
 class _VerifySignupPageState extends State<VerifySignupPage> {
-  final TextEditingController _verificationCodeController = TextEditingController();
   bool _isLoading = false;
+  final _codeController = TextEditingController();
 
   @override
   void dispose() {
-    _verificationCodeController.dispose();
+    _codeController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleVerification() async {
-    // Validate input
-    if (_verificationCodeController.text.trim().isEmpty) {
+  Future<void> _handleVerify() async {
+    if (_codeController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter the verification code'),
+          content: Text('Please enter verification code'),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
     }
 
-    // Check if code is 6 digits
-    if (_verificationCodeController.text.trim().length != 6) {
+    if (_codeController.text.trim().length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Verification code must be 6 digits'),
@@ -49,12 +48,11 @@ class _VerifySignupPageState extends State<VerifySignupPage> {
     try {
       final response = await ApiService.verifyEmail(
         widget.email,
-        _verificationCodeController.text.trim(),
+        _codeController.text.trim(),
       );
 
       if (!mounted) return;
 
-      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(response['message'] ?? 'Email verified successfully!'),
@@ -62,12 +60,23 @@ class _VerifySignupPageState extends State<VerifySignupPage> {
         ),
       );
 
-      // Navigate to login page
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),
-        (route) => false, // Remove all previous routes
-      );
+      // Navigate based on user role
+      final userRole = response['user']['role'];
+      
+      if (userRole == 'Tutor') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const TutorHomePage()),
+        );
+      } else if (userRole == 'Tutee') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const TuteeHomePage()),
+        );
+      }
+
+      debugPrint('Verification successful! Token: ${response['token']}');
+      debugPrint('User: ${response['user']}');
 
     } catch (e) {
       if (!mounted) return;
@@ -93,121 +102,157 @@ class _VerifySignupPageState extends State<VerifySignupPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF4A7AB8),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: screenWidth * 0.08,
-                  vertical: screenHeight * 0.05,
+      body: Center(
+        child: SingleChildScrollView(
+          child: Container(
+            width: double.infinity,
+            margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
+            padding: EdgeInsets.symmetric(
+                horizontal: screenWidth * 0.05, vertical: screenHeight * 0.03),
+            decoration: BoxDecoration(
+              color: const Color(0xFF8BA3C7),
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
                 ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8BA3C7),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      blurRadius: 15,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Logo
+                Image.asset(
+                  'assets/images/ku_logo.png',
+                  height: screenHeight * 0.25,
+                  fit: BoxFit.contain,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'CONFIRMATION',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.2,
-                      ),
-                    ),
-                    SizedBox(height: screenHeight * 0.03),
-                    
-                    Text(
-                      "We've sent a confirmation code to\n${widget.email}",
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Colors.white,
-                        height: 1.4,
-                      ),
-                    ),
-                    SizedBox(height: screenHeight * 0.04),
-                    
-                    // Verification Code field
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: TextField(
-                        controller: _verificationCodeController,
-                        textAlign: TextAlign.center,
-                        keyboardType: TextInputType.number,
-                        maxLength: 6,
-                        enabled: !_isLoading,
-                        decoration: InputDecoration(
-                          hintText: 'Enter the verification code',
-                          hintStyle: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                          border: InputBorder.none,
-                          counterText: '', // Hide character counter
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 14,
-                            horizontal: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: screenHeight * 0.04),
-                    
-                    // Verify button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4A7AB8),
-                          foregroundColor: Colors.white,
-                          padding: EdgeInsets.symmetric(
-                            vertical: screenHeight * 0.02,
-                          ),
-                          elevation: 5,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          disabledBackgroundColor: const Color(0xFF4A7AB8).withValues(alpha: 0.6),
-                        ),
-                        onPressed: _isLoading ? null : _handleVerification,
-                        child: _isLoading
-                            ? SizedBox(
-                                height: screenWidth * 0.05,
-                                width: screenWidth * 0.05,
-                                child: const CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                'VERIFY',
-                                style: TextStyle(
-                                  fontSize: screenWidth * 0.042,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                      ),
-                    ),
-                  ],
+                SizedBox(height: screenHeight * 0.02),
+
+                // Title
+                const Text(
+                  'VERIFY EMAIL',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
+                SizedBox(height: screenHeight * 0.02),
+
+                // Instructions
+                Text(
+                  'A verification code has been sent to:',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.01),
+                Text(
+                  widget.email,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.03),
+
+                // Verification code field
+                TextField(
+                  controller: _codeController,
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  maxLength: 6,
+                  enabled: !_isLoading,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 8,
+                  ),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.85),
+                    hintText: '000000',
+                    hintStyle: TextStyle(
+                      color: Colors.grey[400],
+                      letterSpacing: 8,
+                    ),
+                    counterText: '',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                        vertical: screenHeight * 0.018,
+                        horizontal: screenWidth * 0.04),
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.03),
+
+                // Verify button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _handleVerify,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4A7AB8),
+                      foregroundColor: Colors.white,
+                      elevation: 5,
+                      padding: EdgeInsets.symmetric(
+                          vertical: screenHeight * 0.022),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      disabledBackgroundColor: const Color(0xFF4A7AB8).withValues(alpha: 0.6),
+                    ),
+                    child: _isLoading
+                        ? SizedBox(
+                            height: screenWidth * 0.05,
+                            width: screenWidth * 0.05,
+                            child: const CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            'VERIFY',
+                            style: TextStyle(
+                              fontSize: screenWidth * 0.045,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.02),
+
+                // Back to login
+                TextButton(
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                        },
+                  child: const Text(
+                    'Back to Signup',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.white,
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: screenHeight * 0.02),
+              ],
             ),
           ),
         ),
