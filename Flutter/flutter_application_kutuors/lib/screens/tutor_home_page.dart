@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'tutor_profile.dart';
 import 'login.dart';
 
 class TutorHomePage extends StatefulWidget {
@@ -49,8 +50,15 @@ class _TutorHomePageState extends State <TutorHomePage>{
   }
   void _onBottomNavTap(int index) {
     setState(() => _selectedIndex = index);
-
-    if (index == 2) {
+    if (index == 1) {
+     Navigator.push(
+        context, 
+        MaterialPageRoute(
+          builder: (context) => const TutorProfilePage(isOwner: true)
+          ),
+      ); 
+    }
+    else if (index == 2) {
       _handlelogout();
     }
   }

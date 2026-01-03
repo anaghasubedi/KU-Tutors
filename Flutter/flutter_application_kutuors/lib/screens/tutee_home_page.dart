@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'tutee_profile.dart';
 import 'login.dart';
 
 class TuteeHomePage extends StatefulWidget {
@@ -9,52 +10,63 @@ class TuteeHomePage extends StatefulWidget {
   State<TuteeHomePage> createState() => _TuteeHomePageState();
 }
 
-class _TuteeHomePageState extends State <TuteeHomePage>{
+class _TuteeHomePageState extends State<TuteeHomePage> {
   int _selectedIndex = 0;
-  Future<void> _handlelogout() async{
+  Future<void> _handlelogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
-       builder: (context) => AlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Are you sure you want to logout?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
-            ),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Logout', style: TextStyle(color: Colors.red)),
           ),
-        ], 
-       ),
-       );
-       
-      if (confirmed == true && mounted) {
-        try{
-          await ApiService.logout();
-          if (!mounted) return;
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginPage()),
-            (route) => false,
-          );
-        } catch (e) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Logout failed: $e')),
-          );
-        }
-      } 
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await ApiService.logout();
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
+      }
+    }
   }
+
   void _onBottomNavTap(int index) {
     setState(() => _selectedIndex = index);
-
-    if (index == 2) {
+    
+    if(index == 1){
+      Navigator.push(
+        context, 
+        MaterialPageRoute(
+          builder: (context) => const TuteeProfilePage(isPrivateView: true)
+          ),
+      );
+    }
+    else if (index == 2) {
       _handlelogout();
     }
   }
-  
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
