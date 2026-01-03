@@ -209,3 +209,11 @@ def delete_my_profile(request):
     user = request.user  # DRF knows who is logged in from token
     user.delete()
     return Response({'message': 'Your account has been deleted successfully.'}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([AllowAny]) #allow any will be adjusted based on requirements
+def list_users(request):
+   
+    users = User.objects.all()
+    serializer = UserSerializer(users, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
