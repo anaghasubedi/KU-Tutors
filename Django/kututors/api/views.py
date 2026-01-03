@@ -199,6 +199,7 @@ def reset_password(request):
     except User.DoesNotExist:
         return Response({'error': 'Invalid verification code or email'}, status=status.HTTP_400_BAD_REQUEST)
 
+<<<<<<< HEAD
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
 def update_profile(request):
@@ -335,3 +336,23 @@ def delete_account(request):
     return Response({
         'message': f'Account for {email} deleted successfully'
     }, status=status.HTTP_200_OK)
+=======
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_my_profile(request):
+    """
+    Allow the logged-in user to delete their own account.
+    No user_id needed.
+    """
+    user = request.user  # DRF knows who is logged in from token
+    user.delete()
+    return Response({'message': 'Your account has been deleted successfully.'}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([AllowAny]) #allow any will be adjusted based on requirements
+def list_users(request):
+   
+    users = User.objects.all()
+    serializer = UserSerializer(users, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+>>>>>>> eb1d534b4b66af800675dcbb1fcb65454320f929
