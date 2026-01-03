@@ -1,8 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'login.dart';
 
-class TuteeHomePage extends StatelessWidget {
+class TuteeHomePage extends StatefulWidget {
   const TuteeHomePage({super.key});
 
+  @override
+  State<TuteeHomePage> createState() => _TuteeHomePageState();
+}
+
+class _TuteeHomePageState extends State <TuteeHomePage>{
+  int _selectedIndex = 0;
+  Future<void> _handlelogout() async{
+    final confirmed = await showDialog<bool>(
+      context: context,
+       builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+          ),
+        ], 
+       ),
+       );
+       
+      if (confirmed == true && mounted) {
+        try{
+          await ApiService.logout();
+          if (!mounted) return;
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+            (route) => false,
+          );
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Logout failed: $e')),
+          );
+        }
+      } 
+  }
+  void _onBottomNavTap(int index) {
+    setState(() => _selectedIndex = index);
+
+    if (index == 2) {
+      _handlelogout();
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -30,17 +82,19 @@ class TuteeHomePage extends StatelessWidget {
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight,
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ---------------- Search & Filters ----------------
-                      const Text('Search & Filters',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text(
+                        'Search & Filters',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       TextField(
                         decoration: InputDecoration(
@@ -69,11 +123,18 @@ class TuteeHomePage extends StatelessWidget {
                                 ),
                               ),
                               items: const [
-                                DropdownMenuItem(value: 'CS', child: Text('CS')),
                                 DropdownMenuItem(
-                                    value: 'Math', child: Text('Math')),
+                                  value: 'CS',
+                                  child: Text('CS'),
+                                ),
                                 DropdownMenuItem(
-                                    value: 'Physics', child: Text('Physics')),
+                                  value: 'Math',
+                                  child: Text('Math'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Physics',
+                                  child: Text('Physics'),
+                                ),
                               ],
                               onChanged: (_) {},
                             ),
@@ -91,8 +152,14 @@ class TuteeHomePage extends StatelessWidget {
                                 ),
                               ),
                               items: const [
-                                DropdownMenuItem(value: '101', child: Text('101')),
-                                DropdownMenuItem(value: '102', child: Text('102')),
+                                DropdownMenuItem(
+                                  value: '101',
+                                  child: Text('101'),
+                                ),
+                                DropdownMenuItem(
+                                  value: '102',
+                                  child: Text('102'),
+                                ),
                               ],
                               onChanged: (_) {},
                             ),
@@ -102,71 +169,90 @@ class TuteeHomePage extends StatelessWidget {
                       const SizedBox(height: 20),
 
                       // ---------------- Browse Tutors ----------------
-                      const Text('Browse Tutors',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text(
+                        'Browse Tutors',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: const [
                             TutorCard(
-                                tutorName: 'Ram Sharma',
-                                subject: 'Math',
-                                rate: 'Rs. 800/hr'),
+                              tutorName: 'Ram Sharma',
+                              subject: 'Math',
+                              rate: 'Rs. 800/hr',
+                            ),
                             SizedBox(width: 8),
                             TutorCard(
-                                tutorName: 'Sita Karki',
-                                subject: 'Physics',
-                                rate: 'Rs. 900/hr'),
+                              tutorName: 'Sita Karki',
+                              subject: 'Physics',
+                              rate: 'Rs. 900/hr',
+                            ),
                             SizedBox(width: 8),
                             TutorCard(
-                                tutorName: 'Hari Adhikari',
-                                subject: 'CS',
-                                rate: 'Rs. 1000/hr'),
+                              tutorName: 'Hari Adhikari',
+                              subject: 'CS',
+                              rate: 'Rs. 1000/hr',
+                            ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 20),
 
                       // ---------------- Demo Sessions ----------------
-                      const Text('Demo Sessions',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text(
+                        'Demo Sessions',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Column(
                         children: const [
                           SessionRow(
-                              tutor: 'Amit Sharma',
-                              subject: 'Physics',
-                              time: 'Mon 2 PM',
-                              actionText: 'Book Class'),
+                            tutor: 'Amit Sharma',
+                            subject: 'Physics',
+                            time: 'Mon 2 PM',
+                            actionText: 'Book Class',
+                          ),
                           SessionRow(
-                              tutor: 'Sita Koirala',
-                              subject: 'Math',
-                              time: 'Wed 1 PM',
-                              actionText: 'Book Class'),
+                            tutor: 'Sita Koirala',
+                            subject: 'Math',
+                            time: 'Wed 1 PM',
+                            actionText: 'Book Class',
+                          ),
                         ],
                       ),
                       const SizedBox(height: 20),
 
                       // ---------------- Classes Booked ----------------
-                      const Text('Classes Booked',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text(
+                        'Classes Booked',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Column(
                         children: const [
                           SessionRow(
-                              tutor: 'Amit Sharma',
-                              subject: 'Physics',
-                              time: 'Tue 3 PM',
-                              actionText: 'Booked ✅'),
+                            tutor: 'Amit Sharma',
+                            subject: 'Physics',
+                            time: 'Tue 3 PM',
+                            actionText: 'Booked ✅',
+                          ),
                           SessionRow(
-                              tutor: 'Sita Koirala',
-                              subject: 'Math',
-                              time: 'Thu 4 PM',
-                              actionText: 'Booked ✅'),
+                            tutor: 'Sita Koirala',
+                            subject: 'Math',
+                            time: 'Thu 4 PM',
+                            actionText: 'Booked ✅',
+                          ),
                         ],
                       ),
 
@@ -182,7 +268,9 @@ class TuteeHomePage extends StatelessWidget {
 
       // ---------------- Bottom Navigation ----------------
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF305E9D),
+        onTap: _onBottomNavTap,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
@@ -199,11 +287,12 @@ class TutorCard extends StatelessWidget {
   final String subject;
   final String rate;
 
-  const TutorCard(
-      {super.key,
-      required this.tutorName,
-      required this.subject,
-      required this.rate});
+  const TutorCard({
+    super.key,
+    required this.tutorName,
+    required this.subject,
+    required this.rate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -215,11 +304,15 @@ class TutorCard extends StatelessWidget {
         child: Column(
           children: [
             const CircleAvatar(
-                radius: 30,
-                backgroundColor: Color(0xFF305E9D),
-                child: Icon(Icons.person, color: Colors.white)),
+              radius: 30,
+              backgroundColor: Color(0xFF305E9D),
+              child: Icon(Icons.person, color: Colors.white),
+            ),
             const SizedBox(height: 8),
-            Text(tutorName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              tutorName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             Text(subject),
             Text(rate, style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
@@ -231,7 +324,7 @@ class TutorCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 4),
               ),
               child: const Text('View Profile', style: TextStyle(fontSize: 12)),
-            )
+            ),
           ],
         ),
       ),
@@ -246,12 +339,13 @@ class SessionRow extends StatelessWidget {
   final String time;
   final String actionText;
 
-  const SessionRow(
-      {super.key,
-      required this.tutor,
-      required this.subject,
-      required this.time,
-      required this.actionText});
+  const SessionRow({
+    super.key,
+    required this.tutor,
+    required this.subject,
+    required this.time,
+    required this.actionText,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -274,7 +368,7 @@ class SessionRow extends StatelessWidget {
                 minimumSize: const Size(80, 25),
               ),
               child: Text(actionText, style: const TextStyle(fontSize: 12)),
-            )
+            ),
           ],
         ),
       ),

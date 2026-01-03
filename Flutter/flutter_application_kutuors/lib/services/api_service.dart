@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.80:8000/api';
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
   //change the 10.0.2.2 part to laptop's IP for build in phone
   //runserver using python manage.py runserver 0.0.0.0:8000 for connecting with backend
 
@@ -58,12 +58,12 @@ class ApiService {
 
   // Logout
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    
     try {
+      // Get token BEFORE removing it
       final token = await getToken();
+      
       if (token != null) {
+        // Call backend to invalidate token
         await http.post(
           Uri.parse('$baseUrl/logout/'),
           headers: {
@@ -73,7 +73,11 @@ class ApiService {
         );
       }
     } catch (e) {
-      // Ignore logout errors
+      // Ignore logout errors from backend
+    } finally {
+      // Always remove token from local storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
     }
   }
 
