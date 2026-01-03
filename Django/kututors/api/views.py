@@ -198,3 +198,14 @@ def reset_password(request):
         return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
     except User.DoesNotExist:
         return Response({'error': 'Invalid verification code or email'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_my_profile(request):
+    """
+    Allow the logged-in user to delete their own account.
+    No user_id needed.
+    """
+    user = request.user  # DRF knows who is logged in from token
+    user.delete()
+    return Response({'message': 'Your account has been deleted successfully.'}, status=status.HTTP_200_OK)
