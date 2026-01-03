@@ -9,7 +9,7 @@ class CustomUser(AbstractUser):
     
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     contact = models.CharField(max_length=10, null=True, blank=True)
-    is_verified = models.BooleanField(default=True)
+    is_verified = models.BooleanField(default=False)  # Changed to False for email verification
     verification_code = models.CharField(max_length=6, blank=True, null=True)
     
     def __str__(self):
@@ -17,20 +17,22 @@ class CustomUser(AbstractUser):
 
 class TutorProfile(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='tutor_profile')
-    subject = models.CharField(max_length=50)
+    subject = models.CharField(max_length=50, default="Not Specified")
     semester = models.CharField(max_length=20, default="Unknown")
     subjectcode = models.CharField(max_length=10, default="Unknown")
     available = models.BooleanField(default=True)
     accountnumber = models.CharField(max_length=20, default="Not Provided")
-    bankqr = models.ImageField(upload_to='tutor_profile/', null=True, blank=True)
+    bankqr = models.ImageField(upload_to='tutor_profiles/', null=True, blank=True)  # Can be used for profile pic
+    profile_picture = models.ImageField(upload_to='tutor_profiles/pictures/', null=True, blank=True)  # NEW
     
     def __str__(self):
         return f"{self.user.username} - {self.subject}"
 
 class TuteeProfile(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='tutee_profile')
-    semester = models.CharField(max_length=20)
+    semester = models.CharField(max_length=20, default="Not Specified")
     subjectreqd = models.CharField(max_length=50, default="Unknown")
+    profile_picture = models.ImageField(upload_to='tutee_profiles/', null=True, blank=True)  # NEW
     
     def __str__(self):
         return f"{self.user.username} - {self.semester}"

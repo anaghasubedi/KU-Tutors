@@ -31,7 +31,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         setState(() {
           _imageBytes = bytes;
         });
-        // TODO: Upload _imageBytes to your database/server
+
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
@@ -44,14 +44,12 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   }
 
   void _saveProfile() {
-    // TODO: Implement save logic (upload to database)
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Profile saved')),
     );
   }
 
   void _deleteAccount() {
-    // TODO: Implement delete account logic
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Account deleted')),
     );

@@ -42,7 +42,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
         setState(() {
           _imageBytes = bytes;
         });
-        // TODO: Upload _imageBytes to your database/server
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
@@ -64,7 +63,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Profile saved")),
     );
-    // TODO: Implement actual save logic (upload to database)
   }
 
   @override

@@ -198,3 +198,140 @@ def reset_password(request):
         return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
     except User.DoesNotExist:
         return Response({'error': 'Invalid verification code or email'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def update_profile(request):
+    """
+    Get or update user profile
+    """
+    user = request.user
+    
+    if request.method == 'GET':
+        profile_data = {
+            'name': f"{user.first_name} {user.last_name}".strip(),
+            'email': user.email,
+            'phone_number': user.contact,
+        }
+        
+        # Add role-specific data
+        if user.role == 'Tutor':
+            try:
+                tutor_profile = user.tutor_profile
+                profile_data.update({
+                    'subject': tutor_profile.subject,
+                    'semester': tutor_profile.semester,
+                    'subject_code': tutor_profile.subjectcode,
+                    'rate': str(tutor_profile.accountnumber) if tutor_profile.accountnumber else None,
+                })
+            except:
+                pass
+        elif user.role == 'Tutee':
+            try:
+                tutee_profile = user.tutee_profile
+                profile_data.update({
+                    'semester': tutee_profile.semester,
+                    'subject_required': tutee_profile.subjectreqd,
+                })
+            except:
+                pass
+        
+        return Response(profile_data, status=status.HTTP_200_OK)
+    
+    elif request.method == 'PUT':
+        # Update user basic info
+        name = request.data.get('name')
+        if name:
+            name_parts = name.split(' ', 1)
+            user.first_name = name_parts[0]
+            user.last_name = name_parts[1] if len(name_parts) > 1 else ''
+        
+        if 'phone_number' in request.data:
+            user.contact = request.data.get('phone_number')
+        
+        user.save()
+        
+        # Update profile based on role
+        if user.role == 'Tutor':
+            try:
+                profile = user.tutor_profile
+                if 'subject' in request.data:
+                    profile.subject = request.data.get('subject')
+                if 'semester' in request.data:
+                    profile.semester = request.data.get('semester')
+                if 'subject_code' in request.data:
+                    profile.subjectcode = request.data.get('subject_code')
+                if 'rate' in request.data:
+                    profile.accountnumber = request.data.get('rate')
+                profile.save()
+            except:
+                pass
+                
+        elif user.role == 'Tutee':
+            try:
+                profile = user.tutee_profile
+                if 'semester' in request.data:
+                    profile.semester = request.data.get('semester')
+                if 'subject_required' in request.data:
+                    profile.subjectreqd = request.data.get('subject_required')
+                profile.save()
+            except:
+                pass
+        
+        return Response({
+            'message': 'Profile updated successfully',
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_profile_image(request):
+    """
+    Upload profile image
+    """
+    if 'image' not in request.FILES:
+        return Response({
+            'error': 'No image provided'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    user = request.user
+    image = request.FILES['image']
+    
+    # Save image based on role
+    try:
+        if user.role == 'Tutor':
+            profile = user.tutor_profile
+            profile.bankqr = image
+            profile.save()
+            image_url = profile.bankqr.url if profile.bankqr else None
+        elif user.role == 'Tutee':
+            # For tutee, we'll need to add a profile_picture field to the model
+            # For now, just return success
+            return Response({
+                'message': 'Image upload not yet implemented for tutees'
+            }, status=status.HTTP_200_OK)
+        
+        return Response({
+            'message': 'Image uploaded successfully',
+            'image_url': image_url
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_account(request):
+    """
+    Delete user account
+    """
+    user = request.user
+    email = user.email
+    
+    # Delete user (this will cascade delete the profile)
+    user.delete()
+    
+    return Response({
+        'message': f'Account for {email} deleted successfully'
+    }, status=status.HTTP_200_OK)

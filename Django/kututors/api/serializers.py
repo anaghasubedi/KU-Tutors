@@ -78,17 +78,29 @@ class LoginSerializer(serializers.Serializer):
 
 class TutorProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    profile_picture_url = serializers.SerializerMethodField()
     
     class Meta:
         model = TutorProfile
         fields = '__all__'
+    
+    def get_profile_picture_url(self, obj):
+        if obj.profile_picture:
+            return obj.profile_picture.url
+        return None
 
 class TuteeProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    profile_picture_url = serializers.SerializerMethodField()
     
     class Meta:
         model = TuteeProfile
         fields = '__all__'
+    
+    def get_profile_picture_url(self, obj):
+        if obj.profile_picture:
+            return obj.profile_picture.url
+        return None
 
 class SessionSerializer(serializers.ModelSerializer):
     tutor = TutorProfileSerializer(read_only=True)
@@ -101,3 +113,12 @@ class SessionSerializer(serializers.ModelSerializer):
 class VerifyEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
     verification_code = serializers.CharField(max_length=6)
+
+class UpdateProfileSerializer(serializers.Serializer):
+    name = serializers.CharField(required=False)
+    phone_number = serializers.CharField(required=False)
+    subject = serializers.CharField(required=False)  # For tutors
+    semester = serializers.CharField(required=False)
+    subject_code = serializers.CharField(required=False)  # For tutors
+    rate = serializers.CharField(required=False)  # For tutors
+    subject_required = serializers.CharField(required=False)  # For tutees
