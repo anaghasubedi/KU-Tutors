@@ -251,7 +251,7 @@ def delete_account(request):
         'message': f'Account for {email} deleted successfully'
     }, status=status.HTTP_200_OK)
 
-@api_view(['GET', 'PUT'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def update_profile(request):
     """
@@ -290,7 +290,7 @@ def update_profile(request):
         
         return Response(profile_data, status=status.HTTP_200_OK)
     
-    elif request.method == 'PUT':
+    elif request.method == 'PATCH':
         # Update user basic info
         name = request.data.get('name')
         if name:
