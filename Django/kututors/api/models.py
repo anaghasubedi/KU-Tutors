@@ -1,5 +1,21 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+import random
+from datetime import timedelta
+from django.utils import timezone
+
+def save(self, *args, **kwargs):
+    if not self.expires_at:
+        # Code expires in 15 minutes
+        self.expires_at = timezone.now() + timedelta(minutes=15)
+    super().save(*args, **kwargs)
+    
+def is_expired(self):
+    return timezone.now() > self.expires_at
+    
+class Meta:
+    verbose_name = 'Temporary Signup'
+    verbose_name_plural = 'Temporary Signups'
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = [

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import TutorProfile, TuteeProfile, Session
+from .models import TutorProfile, TuteeProfile, Session, TemporarySignup
+from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 import random
 
@@ -12,65 +13,66 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'contact', 'is_verified']
         read_only_fields = ['id', 'is_verified']
 
-class SignupSerializer(serializers.ModelSerializer):
+class SignupSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    email = serializers.EmailField()
+    phone_number = serializers.CharField(source='contact')
+    role = serializers.CharField()
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
-    name = serializers.CharField(write_only=True)  # Flutter sends "Full Name"
-    phone_number = serializers.CharField(write_only=True, source='contact')  # Flutter sends "Phone no."
-    
-    class Meta:
-        model = User
-        fields = ['name', 'email', 'phone_number', 'password', 'confirm_password', 'role']
     
     def validate(self, data):
         if data['password'] != data['confirm_password']:
             raise serializers.ValidationError({"password": "Passwords do not match"})
+        
+        # Check if email already exists in User
+        if User.objects.filter(email=data['email']).exists():
+            raise serializers.ValidationError({"email": "Email already registered"})
+        
         return data
     
     def create(self, validated_data):
         validated_data.pop('confirm_password')
         name = validated_data.pop('name')
         
-        # Generate 6-digit verification code
-        code = str(random.randint(100000, 999999))
-        
-        # Create username from email
+        # Generate username from email
         username = validated_data['email'].split('@')[0]
-        
-        # Make username unique if it already exists
         base_username = username
         counter = 1
-        while User.objects.filter(username=username).exists():
+        while User.objects.filter(username=username).exists() or TemporarySignup.objects.filter(username=username).exists():
             username = f"{base_username}{counter}"
             counter += 1
         
-        user = User.objects.create_user(
-            username=username,
+        # Generate 6-digit verification code
+        code = str(random.randint(100000, 999999))
+        
+        # Hash password before storing temporarily
+        hashed_password = make_password(validated_data['password'])
+        
+        # Delete any existing temporary signup with this email
+        TemporarySignup.objects.filter(email=validated_data['email']).delete()
+        
+        # Create temporary signup
+        temp_signup = TemporarySignup.objects.create(
             email=validated_data['email'],
-            password=validated_data['password'],
+            username=username,
             first_name=name.split()[0] if name else '',
             last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else '',
+            password=hashed_password,
             role=validated_data['role'],
             contact=validated_data.get('contact', ''),
             verification_code=code,
-            is_verified=False,
         )
-        
-        # Create profile based on role
-        if user.role == 'Tutor':
-            TutorProfile.objects.create(user=user)
-        elif user.role == 'Tutee':
-            TuteeProfile.objects.create(user=user)
         
         # Send verification email
         try:
             subject = 'KU-Tutors Email Verification'
-            message = f'Hello {name},\n\nYour verification code is: {code}\n\nThank you!'
-            send_mail(subject, message, None, [user.email], fail_silently=True)
+            message = f'Hello {name},\n\nYour verification code is: {code}\n\nThis code will expire in 15 minutes.\n\nThank you!'
+            send_mail(subject, message, None, [temp_signup.email], fail_silently=True)
         except Exception as e:
             print(f"Failed to send email: {e}")
         
-        return user
+        return temp_signup
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()

@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
+from .models import TutorProfile, TuteeProfile, TemporarySignup
 from .serializers import SignupSerializer, LoginSerializer, UserSerializer, VerifyEmailSerializer
 import random
 
@@ -14,22 +15,24 @@ User = get_user_model()
 @permission_classes([AllowAny])
 def signup(request):
     """
-    Register a new user (Tutor or Tutee)
-    Expected fields from Flutter: name, email, phone_number, role, password, confirm_password
+    Store signup data temporarily and send verification code
+    User account is NOT created until email is verified
     """
+    print("SIGNUP ENDPOINT CALLED!")
     serializer = SignupSerializer(data=request.data)
     if serializer.is_valid():
-        user = serializer.save()
+        temp_signup = serializer.save()
         
         # Print verification code to console
         print("=" * 50)
-        print(f"SIGNUP VERIFICATION CODE FOR: {user.email}")
-        print(f"CODE: {user.verification_code}")
+        print(f"SIGNUP VERIFICATION CODE FOR: {temp_signup.email}")
+        print(f"CODE: {temp_signup.verification_code}")
+        print(f"EXPIRES IN: 15 minutes")
         print("=" * 50)
         
         return Response({
-            'user': UserSerializer(user).data,
-            'message': 'User created successfully. Please check your email for verification code.'
+            'email': temp_signup.email,
+            'message': 'Verification code sent to your email. Please verify within 15 minutes.'
         }, status=status.HTTP_201_CREATED)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -38,7 +41,7 @@ def signup(request):
 @permission_classes([AllowAny])
 def verify_email(request):
     """
-    Verify user's email with the verification code
+    Verify code and create actual user account
     """
     serializer = VerifyEmailSerializer(data=request.data)
     if serializer.is_valid():
@@ -46,20 +49,48 @@ def verify_email(request):
         code = serializer.validated_data['verification_code']
         
         try:
-            user = User.objects.get(email=email, verification_code=code)
-            user.is_verified = True
-            user.verification_code = None  # Clear the code after verification
+            temp_signup = TemporarySignup.objects.get(email=email, verification_code=code)
+            
+            # Check if code expired
+            if temp_signup.is_expired():
+                temp_signup.delete()
+                return Response({
+                    'error': 'Verification code expired. Please sign up again.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Create actual user account
+            user = User.objects.create(
+                username=temp_signup.username,
+                email=temp_signup.email,
+                first_name=temp_signup.first_name,
+                last_name=temp_signup.last_name,
+                role=temp_signup.role,
+                contact=temp_signup.contact,
+                is_verified=True,
+            )
+            # Set the hashed password directly
+            user.password = temp_signup.password
             user.save()
             
-            # Generate token after verification
+            # Create profile based on role
+            if user.role == 'Tutor':
+                TutorProfile.objects.create(user=user)
+            elif user.role == 'Tutee':
+                TuteeProfile.objects.create(user=user)
+            
+            # Delete temporary signup
+            temp_signup.delete()
+            
+            # Generate token
             token, created = Token.objects.get_or_create(user=user)
             
             return Response({
                 'token': token.key,
                 'user': UserSerializer(user).data,
-                'message': 'Email verified successfully'
+                'message': 'Email verified successfully. Account created!'
             }, status=status.HTTP_200_OK)
-        except User.DoesNotExist:
+            
+        except TemporarySignup.DoesNotExist:
             return Response({
                 'error': 'Invalid verification code or email'
             }, status=status.HTTP_400_BAD_REQUEST)
@@ -84,13 +115,6 @@ def login(request):
             return Response({
                 'error': 'Invalid credentials'
             }, status=status.HTTP_401_UNAUTHORIZED)
-        
-        # Check if email is verified
-        if not user.is_verified:
-            return Response({
-                'error': 'Please verify your email first',
-                'email': email
-            }, status=status.HTTP_403_FORBIDDEN)
         
         # Authenticate with username (since Django uses username by default)
         user = authenticate(username=user.username, password=password)
@@ -142,6 +166,7 @@ def forgot_password(request):
     """
     Send password reset code to email
     """
+    print("FORGOT PASSWORD ENDPOINT CALLED!")
     email = request.data.get('email')
     if not email:
         return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -199,7 +224,22 @@ def reset_password(request):
     except User.DoesNotExist:
         return Response({'error': 'Invalid verification code or email'}, status=status.HTTP_400_BAD_REQUEST)
 
-<<<<<<< HEAD
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_account(request):
+    """
+    Delete user account
+    """
+    user = request.user
+    email = user.email
+    
+    # Delete user (this will cascade delete the profile)
+    user.delete()
+    
+    return Response({
+        'message': f'Account for {email} deleted successfully'
+    }, status=status.HTTP_200_OK)
+
 @api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
 def update_profile(request):
@@ -320,39 +360,3 @@ def upload_profile_image(request):
         return Response({
             'error': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_account(request):
-    """
-    Delete user account
-    """
-    user = request.user
-    email = user.email
-    
-    # Delete user (this will cascade delete the profile)
-    user.delete()
-    
-    return Response({
-        'message': f'Account for {email} deleted successfully'
-    }, status=status.HTTP_200_OK)
-=======
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_my_profile(request):
-    """
-    Allow the logged-in user to delete their own account.
-    No user_id needed.
-    """
-    user = request.user  # DRF knows who is logged in from token
-    user.delete()
-    return Response({'message': 'Your account has been deleted successfully.'}, status=status.HTTP_200_OK)
-
-@api_view(['GET'])
-@permission_classes([AllowAny]) #allow any will be adjusted based on requirements
-def list_users(request):
-   
-    users = User.objects.all()
-    serializer = UserSerializer(users, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
->>>>>>> eb1d534b4b66af800675dcbb1fcb65454320f929
