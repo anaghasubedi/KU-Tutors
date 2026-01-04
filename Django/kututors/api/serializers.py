@@ -4,6 +4,7 @@ from .models import TutorProfile, TuteeProfile, Session, TemporarySignup
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 import random
+import secrets
 
 User = get_user_model()
 
@@ -46,8 +47,13 @@ class SignupSerializer(serializers.Serializer):
         # Generate 6-digit verification code
         code = str(random.randint(100000, 999999))
         
-        # Hash password before storing temporarily
-        hashed_password = make_password(validated_data['password'])
+        # Generate cryptographically secure random salt (22 characters)
+        salt = secrets.token_urlsafe(16)[:22]
+        
+        # Hash password with the generated salt
+        # make_password automatically uses PBKDF2 with salt
+        # Explicitly passing salt ensures we use our generated one
+        hashed_password = make_password(validated_data['password'], salt=salt)
         
         # Delete any existing temporary signup with this email
         TemporarySignup.objects.filter(email=validated_data['email']).delete()

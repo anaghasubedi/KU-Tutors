@@ -5,9 +5,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
+from django.contrib.auth.hashers import make_password
 from .models import TutorProfile, TuteeProfile, TemporarySignup
 from .serializers import SignupSerializer, LoginSerializer, UserSerializer, VerifyEmailSerializer
 import random
+import secrets
 
 User = get_user_model()
 
@@ -68,7 +70,7 @@ def verify_email(request):
                 contact=temp_signup.contact,
                 is_verified=True,
             )
-            # Set the hashed password directly
+            # Set the hashed password directly (already hashed with salt in serializer)
             user.password = temp_signup.password
             user.save()
             
@@ -217,9 +219,18 @@ def reset_password(request):
     
     try:
         user = User.objects.get(email=email, verification_code=code)
-        user.set_password(new_password)
+        
+        # Generate cryptographically secure random salt
+        salt = secrets.token_urlsafe(16)[:22]
+        
+        # Hash the new password with salt using make_password
+        hashed_password = make_password(new_password, salt=salt)
+        
+        # Set the hashed password
+        user.password = hashed_password
         user.verification_code = None  # Clear the code
         user.save()
+        
         return Response({'message': 'Password reset successfully'}, status=status.HTTP_200_OK)
     except User.DoesNotExist:
         return Response({'error': 'Invalid verification code or email'}, status=status.HTTP_400_BAD_REQUEST)
