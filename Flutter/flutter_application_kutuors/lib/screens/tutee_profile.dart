@@ -253,27 +253,29 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF4A7AB8),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20.0),
-                  child: Text(
-                    'Tutee Profile',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-
-                Container(
+return Scaffold(
+  backgroundColor: const Color(0xFF4A7AB8),
+  appBar: AppBar(
+    backgroundColor: const Color(0xFF4A7AB8),
+    elevation: 0,
+    automaticallyImplyLeading: false,
+    title: const Text(
+      'Tutee Profile',
+      style: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: Colors.white,
+      ),
+    ),
+    centerTitle: true,
+  ),
+  body: SafeArea(
+    child: SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: const Color(0xFF8BA3C7),

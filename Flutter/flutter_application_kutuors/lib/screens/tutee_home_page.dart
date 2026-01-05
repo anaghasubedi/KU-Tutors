@@ -101,21 +101,23 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     }
   }
 
-  void _onBottomNavTap(int index) {
-    setState(() => _selectedIndex = index);
-    
-    if(index == 1){
-      Navigator.push(
-        context, 
-        MaterialPageRoute(
-          builder: (context) => const TuteeProfilePage(isPrivateView: true)
-          ),
-      );
-    }
-    else if (index == 2) {
-      _handlelogout();
-    }
+ void _onBottomNavTap(int index) {
+  if(index == 1){
+    Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (context) => const TuteeProfilePage(isPrivateView: true)
+      ),
+    );
   }
+  else if (index == 2) {
+    _handlelogout();
+  }
+  else {
+    // Only update _selectedIndex for Home (index 0)
+    setState(() => _selectedIndex = index);
+  }
+}
 
   void _viewTutorProfile(Map<String, dynamic> tutor) {
     Navigator.push(
@@ -314,7 +316,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                                     onTap: () => _viewTutorProfile(tutor),
                                   ),
                                 );
-                              }).toList(),
+                              }),
                             ],
                           ),
                         ),

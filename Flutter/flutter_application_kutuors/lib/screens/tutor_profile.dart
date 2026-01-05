@@ -278,10 +278,19 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     return Scaffold(
       backgroundColor: const Color(0xFF4A7AB8),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4A7AB8),
-        title: Text(widget.isOwner ? "My Profile" : "Tutor Profile"),
-        centerTitle: true,
-      ),
+  backgroundColor: const Color(0xFF4A7AB8),
+  elevation: 0,
+  automaticallyImplyLeading: false,
+  title: Text(
+    widget.isOwner ? "My Profile" : "Tutor Profile",
+    style: const TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+      color: Colors.white,
+    ),
+  ),
+  centerTitle: true,
+),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
