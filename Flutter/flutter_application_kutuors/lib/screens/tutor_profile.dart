@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TutorProfilePage extends StatefulWidget {
   final bool isOwner; // true: tutor viewing their own profile (private), false: public view
@@ -13,25 +16,88 @@ class TutorProfilePage extends StatefulWidget {
 
 class _TutorProfilePageState extends State<TutorProfilePage> {
   Uint8List? _imageBytes;
+  bool _isLoading = true;
+  String? _token;
 
-  // Sample data controllers
-  final TextEditingController _nameController =
-      TextEditingController(text: "Amit Sharma");
-  final TextEditingController _kuEmailController =
-      TextEditingController(text: "amit.sharma@ku.edu.np");
-  final TextEditingController _phoneController =
-      TextEditingController(text: "+977 9812345678");
-  final TextEditingController _subjectYearController =
-      TextEditingController(text: "Physics, 3rd Year");
-  final TextEditingController _rateController =
-      TextEditingController(text: "Rs. 2000/hr");
+  // Data controllers
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _kuEmailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _subjectController = TextEditingController();
+  final TextEditingController _semesterController = TextEditingController();
+  final TextEditingController _subjectCodeController = TextEditingController();
+  final TextEditingController _rateController = TextEditingController();
 
-  final List<String> _subjects = ["Physics", "Mathematics", "Chemistry"];
+  List<String> _subjects = [];
   final List<Map<String, String>> _availability = [
     {"day": "Monday", "time": "2 PM - 3 PM", "status": "Available"},
     {"day": "Tuesday", "time": "1 PM - 2 PM", "status": "Booked"},
     {"day": "Wednesday", "time": "3 PM - 4 PM", "status": "Available"},
   ];
+
+  // API Base URL - Update this to match your backend
+  static const String baseUrl = 'http://10.0.2.2:8000'; // Use 10.0.2.2 for Android emulator
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString('auth_token');
+
+      if (_token == null) {
+        throw Exception('No authentication token found');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/update-profile/'),
+        headers: {
+          'Authorization': 'Token $_token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        setState(() {
+          _nameController.text = data['name'] ?? '';
+          _kuEmailController.text = data['email'] ?? '';
+          _phoneController.text = data['phone_number'] ?? '';
+          _subjectController.text = data['subject'] ?? '';
+          _semesterController.text = data['semester'] ?? '';
+          _subjectCodeController.text = data['subject_code'] ?? '';
+          _rateController.text = data['rate'] ?? '';
+          
+          // Parse subjects from comma-separated string
+          if (data['subject'] != null && data['subject'].isNotEmpty) {
+            _subjects = data['subject'].split(',').map((s) => s.trim()).toList();
+          }
+          
+          _isLoading = false;
+        });
+
+        // Load profile picture if available
+        // await _loadProfilePicture();
+      } else {
+        throw Exception('Failed to load profile');
+      }
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load profile: $e')),
+        );
+      }
+    }
+  }
 
   Future<void> _pickImage() async {
     try {
@@ -42,6 +108,9 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
         setState(() {
           _imageBytes = bytes;
         });
+        
+        // Upload image to backend
+        await _uploadImage(pickedFile);
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
@@ -53,20 +122,159 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     }
   }
 
-  void _deleteAccount() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Account deleted")),
-    );
+  Future<void> _uploadImage(XFile imageFile) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/api/upload-image/'),
+      );
+      
+      request.headers['Authorization'] = 'Token $token';
+      request.files.add(await http.MultipartFile.fromPath(
+        'image',
+        imageFile.path,
+      ));
+
+      final response = await request.send();
+      
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image uploaded successfully')),
+          );
+        }
+      } else {
+        throw Exception('Upload failed');
+      }
+    } catch (e) {
+      debugPrint('Error uploading image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload image: $e')),
+        );
+      }
+    }
   }
 
-  void _saveProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Profile saved")),
+  Future<void> _deleteAccount() async {
+    // Show confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'Are you sure you want to delete your account? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
+
+    if (confirm != true) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/api/delete-account/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Clear stored data
+        await prefs.clear();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Account deleted successfully')),
+          );
+          
+          // Navigate to login page
+          Navigator.pushReplacementNamed(context, '/login');
+        }
+      } else {
+        throw Exception('Failed to delete account');
+      }
+    } catch (e) {
+      debugPrint('Error deleting account: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete account: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/update-profile/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'name': _nameController.text,
+          'phone_number': _phoneController.text,
+          'subject': _subjectController.text,
+          'semester': _semesterController.text,
+          'subject_code': _subjectCodeController.text,
+          'rate': _rateController.text,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile saved successfully')),
+          );
+        }
+        // Reload profile to update subjects list
+        await _loadUserProfile();
+      } else {
+        final error = json.decode(response.body);
+        throw Exception(error['error'] ?? 'Failed to save profile');
+      }
+    } catch (e) {
+      debugPrint('Error saving profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save profile: $e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF4A7AB8),
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF4A7AB8),
       appBar: AppBar(
@@ -148,11 +356,15 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
 
                     _buildEditableField("Name", _nameController),
                     const SizedBox(height: 12),
-                    _buildEditableField("KU Email", _kuEmailController),
+                    _buildEditableField("KU Email", _kuEmailController, enabled: false),
                     const SizedBox(height: 12),
                     _buildEditableField("Phone No", _phoneController),
                     const SizedBox(height: 12),
-                    _buildEditableField("Subject & Year", _subjectYearController),
+                    _buildEditableField("Subject", _subjectController),
+                    const SizedBox(height: 12),
+                    _buildEditableField("Semester", _semesterController),
+                    const SizedBox(height: 12),
+                    _buildEditableField("Subject Code", _subjectCodeController),
                     const SizedBox(height: 12),
                     _buildEditableField("Rate", _rateController),
                     const SizedBox(height: 24),
@@ -184,33 +396,34 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
               const SizedBox(height: 20),
 
               // ---------------- Subjects ----------------
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Subjects",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.white),
+              if (_subjects.isNotEmpty) ...[
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Subjects",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.white),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: _subjects
-                    .map(
-                      (sub) => Chip(
-                        label: Text(sub),
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: _subjects
+                      .map(
+                        (sub) => Chip(
+                          label: Text(sub),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-              ),
-
-              const SizedBox(height: 20),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 20),
+              ],
 
               // ---------------- Availability ----------------
               const Align(
@@ -266,15 +479,15 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
 
               const SizedBox(height: 24),
 
-              // ---------------- Delete / Logout buttons ----------------
+              // ---------------- Delete Account Button ----------------
               if (widget.isOwner) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: _deleteAccount,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF4A7AB8),
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
@@ -292,7 +505,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     );
   }
 
-  Widget _buildEditableField(String label, TextEditingController controller) {
+  Widget _buildEditableField(String label, TextEditingController controller, {bool enabled = true}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -305,7 +518,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           ),
         ),
         Expanded(
-          child: widget.isOwner
+          child: widget.isOwner && enabled
               ? TextField(
                   controller: controller,
                   style: const TextStyle(color: Colors.white),
@@ -325,5 +538,17 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _kuEmailController.dispose();
+    _phoneController.dispose();
+    _subjectController.dispose();
+    _semesterController.dispose();
+    _subjectCodeController.dispose();
+    _rateController.dispose();
+    super.dispose();
   }
 }
