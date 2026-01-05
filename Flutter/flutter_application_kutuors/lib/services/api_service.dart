@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -258,7 +259,219 @@ class ApiService {
     }
   }
 
-  // Update user profile
+  // Get profile data for update-profile endpoint (NEW)
+  static Future<Map<String, dynamic>> getProfileData() async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/update-profile/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to get profile');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Update user profile (NEW - matches your Django endpoint)
+  static Future<Map<String, dynamic>> updateProfileData({
+    String? name,
+    String? phoneNumber,
+    String? subject,
+    String? semester,
+    String? subjectCode,
+    String? rate,
+    String? subjectRequired,
+  }) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      // Build request body with only non-null values
+      final Map<String, dynamic> body = {};
+      if (name != null) body['name'] = name;
+      if (phoneNumber != null) body['phone_number'] = phoneNumber;
+      if (subject != null) body['subject'] = subject;
+      if (semester != null) body['semester'] = semester;
+      if (subjectCode != null) body['subject_code'] = subjectCode;
+      if (rate != null) body['rate'] = rate;
+      if (subjectRequired != null) body['subject_required'] = subjectRequired;
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/update-profile/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to update profile');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Upload profile image (NEW)
+  static Future<Map<String, dynamic>> uploadProfileImage(File imageFile) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/upload-image/'),
+      );
+      
+      request.headers['Authorization'] = 'Token $token';
+      request.files.add(await http.MultipartFile.fromPath(
+        'image',
+        imageFile.path,
+      ));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to upload image');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Delete account (NEW - updated endpoint)
+  static Future<void> deleteAccount() async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/delete-account/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        // Clear local token after deletion
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('auth_token');
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to delete account');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // List all available tutors (NEW)
+  static Future<Map<String, dynamic>> listTutors() async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/list-tutors/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to load tutors');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Get specific tutor profile (NEW - if needed for viewing individual tutor)
+  static Future<Map<String, dynamic>> getTutorProfile(int tutorId) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/tutor/$tutorId/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to load tutor profile');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Update user profile (DEPRECATED - keep for backward compatibility)
   static Future<Map<String, dynamic>> updateProfile({
     required String firstName,
     required String lastName,
@@ -289,38 +502,6 @@ class ApiService {
       } else {
         final error = jsonDecode(response.body);
         throw Exception(error['error'] ?? 'Failed to update profile');
-      }
-    } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to server.');
-      }
-      rethrow;
-    }
-  }
-
-  // Delete account
-  static Future<void> deleteAccount() async {
-    try {
-      final token = await getToken();
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
-
-      final response = await http.delete(
-        Uri.parse('$baseUrl/profile/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Token $token',
-        },
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        // Clear local token after deletion
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('auth_token');
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['error'] ?? 'Failed to delete account');
       }
     } catch (e) {
       if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {

@@ -7,7 +7,10 @@ from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.contrib.auth.hashers import make_password
 from .models import TutorProfile, TuteeProfile, TemporarySignup
-from .serializers import SignupSerializer, LoginSerializer, UserSerializer, VerifyEmailSerializer
+from .serializers import (
+    SignupSerializer, LoginSerializer, UserSerializer, 
+    VerifyEmailSerializer, TutorProfileSerializer
+)
 import random
 import secrets
 
@@ -220,7 +223,7 @@ def reset_password(request):
     try:
         user = User.objects.get(email=email, verification_code=code)
         
-        # Generate cryptographically secure random salt
+        # Generate cryptographically secure random salt (22 characters)
         salt = secrets.token_urlsafe(16)[:22]
         
         # Hash the new password with salt using make_password
@@ -255,7 +258,7 @@ def delete_account(request):
 @permission_classes([IsAuthenticated])
 def update_profile(request):
     """
-    Get or update user profile
+    Get or update user profile (partial updates supported)
     """
     user = request.user
     
@@ -353,19 +356,37 @@ def upload_profile_image(request):
     try:
         if user.role == 'Tutor':
             profile = user.tutor_profile
-            profile.bankqr = image
+            profile.profile_picture = image  # Use profile_picture field
             profile.save()
-            image_url = profile.bankqr.url if profile.bankqr else None
+            image_url = profile.profile_picture.url if profile.profile_picture else None
         elif user.role == 'Tutee':
-            # For tutee, we'll need to add a profile_picture field to the model
-            # For now, just return success
-            return Response({
-                'message': 'Image upload not yet implemented for tutees'
-            }, status=status.HTTP_200_OK)
+            profile = user.tutee_profile
+            profile.profile_picture = image  # Use profile_picture field
+            profile.save()
+            image_url = profile.profile_picture.url if profile.profile_picture else None
         
         return Response({
             'message': 'Image uploaded successfully',
             'image_url': image_url
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_tutors(request):
+    """
+    List all available tutors with their profiles
+    """
+    try:
+        tutors = TutorProfile.objects.filter(available=True).select_related('user')
+        serializer = TutorProfileSerializer(tutors, many=True)
+        
+        return Response({
+            'tutors': serializer.data,
+            'count': tutors.count()
         }, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({

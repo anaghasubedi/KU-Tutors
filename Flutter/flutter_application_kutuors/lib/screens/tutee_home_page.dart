@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'tutee_profile.dart';
+import 'tutor_profile.dart';
 import 'login.dart';
 
 class TuteeHomePage extends StatefulWidget {
@@ -12,6 +16,54 @@ class TuteeHomePage extends StatefulWidget {
 
 class _TuteeHomePageState extends State<TuteeHomePage> {
   int _selectedIndex = 0;
+  List<Map<String, dynamic>> _tutors = [];
+  bool _isLoadingTutors = true;
+  bool _showAllTutors = false;
+  
+  // API Base URL -match with backend
+  static const String baseUrl = 'http://192.168.16.245:8000';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTutors();
+  }
+
+  Future<void> _loadTutors() async {
+    setState(() => _isLoadingTutors = true);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/list-tutors/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _tutors = List<Map<String, dynamic>>.from(data['tutors']);
+          _isLoadingTutors = false;
+        });
+      } else {
+        throw Exception('Failed to load tutors');
+      }
+    } catch (e) {
+      debugPrint('Error loading tutors: $e');
+      setState(() => _isLoadingTutors = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load tutors: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _handlelogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -65,10 +117,22 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     }
   }
 
-
+  void _viewTutorProfile(Map<String, dynamic> tutor) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const TutorProfilePage(isOwner: false),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Determine how many tutors to show
+    final tutorsToShow = _showAllTutors 
+        ? _tutors 
+        : (_tutors.length > 5 ? _tutors.sublist(0, 5) : _tutors);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FA),
       appBar: AppBar(
@@ -181,38 +245,79 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                       const SizedBox(height: 20),
 
                       // ---------------- Browse Tutors ----------------
-                      const Text(
-                        'Browse Tutors',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Browse Tutors',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          if (_tutors.length > 5)
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _showAllTutors = !_showAllTutors;
+                                });
+                              },
+                              child: Text(
+                                _showAllTutors ? 'Show Less' : 'Show More',
+                                style: const TextStyle(
+                                  color: Color(0xFF305E9D),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: const [
-                            TutorCard(
-                              tutorName: 'Ram Sharma',
-                              subject: 'Math',
-                              rate: 'Rs. 800/hr',
-                            ),
-                            SizedBox(width: 8),
-                            TutorCard(
-                              tutorName: 'Sita Karki',
-                              subject: 'Physics',
-                              rate: 'Rs. 900/hr',
-                            ),
-                            SizedBox(width: 8),
-                            TutorCard(
-                              tutorName: 'Hari Adhikari',
-                              subject: 'CS',
-                              rate: 'Rs. 1000/hr',
-                            ),
-                          ],
+                      
+                      // Loading state
+                      if (_isLoadingTutors)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      // No tutors found
+                      else if (_tutors.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: Text('No tutors available at the moment'),
+                          ),
+                        )
+                      // Display tutors
+                      else
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              ...tutorsToShow.map((tutor) {
+                                final userName = tutor['user']?['first_name'] ?? 'Unknown';
+                                final lastName = tutor['user']?['last_name'] ?? '';
+                                final fullName = '$userName $lastName'.trim();
+                                final subject = tutor['subject'] ?? 'Not Specified';
+                                final rate = tutor['accountnumber'] ?? 'N/A';
+                                
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
+                                  child: TutorCard(
+                                    tutorName: fullName,
+                                    subject: subject,
+                                    rate: rate.toString().startsWith('Rs') 
+                                        ? rate 
+                                        : 'Rs. $rate/hr',
+                                    onTap: () => _viewTutorProfile(tutor),
+                                  ),
+                                );
+                              }).toList(),
+                            ],
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 20),
 
                       // ---------------- Demo Sessions ----------------
@@ -298,12 +403,14 @@ class TutorCard extends StatelessWidget {
   final String tutorName;
   final String subject;
   final String rate;
+  final VoidCallback onTap;
 
   const TutorCard({
     super.key,
     required this.tutorName,
     required this.subject,
     required this.rate,
+    required this.onTap,
   });
 
   @override
@@ -324,12 +431,24 @@ class TutorCard extends StatelessWidget {
             Text(
               tutorName,
               style: const TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            Text(subject),
-            Text(rate, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              subject,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              rate,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
             ElevatedButton(
-              onPressed: () {},
+              onPressed: onTap,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF305E9D),
                 minimumSize: const Size.fromHeight(30),

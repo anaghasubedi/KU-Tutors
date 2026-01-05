@@ -87,6 +87,7 @@ class LoginSerializer(serializers.Serializer):
 class TutorProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     profile_picture_url = serializers.SerializerMethodField()
+    bankqr_url = serializers.SerializerMethodField()
     
     class Meta:
         model = TutorProfile
@@ -95,6 +96,11 @@ class TutorProfileSerializer(serializers.ModelSerializer):
     def get_profile_picture_url(self, obj):
         if obj.profile_picture:
             return obj.profile_picture.url
+        return None
+    
+    def get_bankqr_url(self, obj):
+        if obj.bankqr:
+            return obj.bankqr.url
         return None
 
 class TuteeProfileSerializer(serializers.ModelSerializer):
