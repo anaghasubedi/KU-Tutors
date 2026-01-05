@@ -48,20 +48,23 @@ class _TutorHomePageState extends State <TutorHomePage>{
         }
       } 
   }
-  void _onBottomNavTap(int index) {
-    setState(() => _selectedIndex = index);
-    if (index == 1) {
-     Navigator.push(
-        context, 
-        MaterialPageRoute(
-          builder: (context) => const TutorProfilePage(isOwner: true)
-          ),
-      ); 
-    }
-    else if (index == 2) {
-      _handlelogout();
-    }
+ void _onBottomNavTap(int index) {
+  if (index == 1) {
+    Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (context) => const TutorProfilePage(isOwner: true)
+      ),
+    ); 
   }
+  else if (index == 2) {
+    _handlelogout();
+  }
+  else {
+    // Only update _selectedIndex for Home (index 0)
+    setState(() => _selectedIndex = index);
+  }
+}
 
   @override
   Widget build(BuildContext context) {
