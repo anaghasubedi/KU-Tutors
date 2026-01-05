@@ -75,6 +75,7 @@ class _TutorHomePageState extends State <TutorHomePage>{
       backgroundColor: const Color(0xFFF2F5FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFF305E9D),
+        automaticallyImplyLeading: false, // Remove back arrow
         title: Row(
           children: [
             Image.asset('assets/images/ku_logo.png', height: 50),
