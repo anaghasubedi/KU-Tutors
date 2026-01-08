@@ -25,7 +25,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   final TextEditingController _subjectRequiredController = TextEditingController();
 
   // API Base URL - Update this to match your backend
-  static const String baseUrl = 'http://192.168.16.245:8000'; // Use 10.0.2.2 for Android emulator, localhost for iOS
+  static const String baseUrl = 'http://192.168.16.1:8000'; // Use 10.0.2.2 for Android emulator, localhost for iOS
 
   @override
   void initState() {
