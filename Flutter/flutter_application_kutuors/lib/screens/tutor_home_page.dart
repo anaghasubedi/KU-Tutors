@@ -190,36 +190,59 @@ class SessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double h = MediaQuery.of(context).size.height;
-    final double w = MediaQuery.of(context).size.width;
-
     return Card(
-      margin: EdgeInsets.symmetric(vertical: h * 0.008),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: EdgeInsets.all(w * 0.04),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Tutee Info
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(tutee, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                Text(subject),
-                Text(time, style: const TextStyle(fontWeight: FontWeight.bold)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tutee,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subject,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    time,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            // Action Button
+            const SizedBox(width: 8),
             ElevatedButton(
               onPressed: isCompleted ? null : () {},
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF305E9D),
-                padding: EdgeInsets.symmetric(vertical: h * 0.015, horizontal: w * 0.04),
-                minimumSize: Size(w * 0.28, h * 0.05),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                minimumSize: const Size(100, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: Text(buttonText, style: const TextStyle(fontSize: 14)),
+              child: Text(
+                buttonText,
+                style: const TextStyle(fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),

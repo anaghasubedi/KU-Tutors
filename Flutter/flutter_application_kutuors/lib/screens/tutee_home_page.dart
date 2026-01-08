@@ -21,7 +21,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   bool _showAllTutors = false;
   
   // API Base URL -match with backend
-  static const String baseUrl = 'http://192.168.16.245:8000';
+  static const String baseUrl = 'http://192.168.16.1:8000';
 
   @override
   void initState() {
@@ -166,9 +166,9 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ---------------- Search & Filters ----------------
+                      // ---------------- Search ----------------
                       const Text(
-                        'Search & Filters',
+                        'Search Tutors',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -186,64 +186,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                             borderSide: BorderSide.none,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: Colors.white,
-                                hintText: 'Department',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'CS',
-                                  child: Text('CS'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'Math',
-                                  child: Text('Math'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'Physics',
-                                  child: Text('Physics'),
-                                ),
-                              ],
-                              onChanged: (_) {},
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              decoration: InputDecoration(
-                                filled: true,
-                                fillColor: Colors.white,
-                                hintText: 'Subject Code',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: '101',
-                                  child: Text('101'),
-                                ),
-                                DropdownMenuItem(
-                                  value: '102',
-                                  child: Text('102'),
-                                ),
-                              ],
-                              onChanged: (_) {},
-                            ),
-                          ),
-                        ],
                       ),
                       const SizedBox(height: 20),
 
@@ -485,23 +427,52 @@ class SessionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        title: Text(tutor),
-        subtitle: Text(subject),
-        trailing: Column(
-          mainAxisSize: MainAxisSize.min, // prevents extra vertical space
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
           children: [
-            Text(time),
-            const SizedBox(height: 4),
-            ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF305E9D),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: const Size(80, 25),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tutor,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subject,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
-              child: Text(actionText, style: const TextStyle(fontSize: 12)),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  time,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF305E9D),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: const Size(80, 25),
+                  ),
+                  child: Text(actionText, style: const TextStyle(fontSize: 12)),
+                ),
+              ],
             ),
           ],
         ),

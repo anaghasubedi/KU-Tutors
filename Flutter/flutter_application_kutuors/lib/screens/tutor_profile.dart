@@ -36,7 +36,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   ];
 
   // API Base URL - Update this to match your backend
-  static const String baseUrl = 'http://192.168.16.1:8000'; // Use 10.0.2.2 for Android emulator
+  static const String baseUrl = 'http://192.168.16.245:8000'; // Use 10.0.2.2 for Android emulator
 
   @override
   void initState() {

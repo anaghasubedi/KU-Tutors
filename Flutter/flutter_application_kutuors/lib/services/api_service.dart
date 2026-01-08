@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.16.1:8000/api';
+  static const String baseUrl = 'http://192.168.16.245:8000/api';
   //change the 10.0.2.2 part to laptop's IP for build in phone
   //runserver using python manage.py runserver 0.0.0.0:8000 for connecting with backend
 
