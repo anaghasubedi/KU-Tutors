@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'tutee_profile.dart';
 import 'tutor_profile.dart';
+import 'login.dart';
 
 class TuteeHomePage extends StatefulWidget {
   const TuteeHomePage({super.key});
@@ -18,37 +19,8 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   List<Map<String, dynamic>> _tutors = [];
   bool _isLoadingTutors = true;
   bool _showAllTutors = false;
-
-  // Department & Subject selection
-  String? selectedDepartment;
-  String? selectedSubject;
-
-  // Subject lists by department
-  final Map<String, List<String>> subjectsByDept = {
-    'CS': [
-      'MATH 101','PHYS 101','COMP 102','ENGG 111','CHEM 101','EDRG 101','ENGG 101',
-      'MATH 104','PHYS 102','COMP 116','ENGG 112','ENGT 105','ENVE 101','EDRG 102','ENGG 102',
-      'MATH 208','MCSC 201','EEEG 202','EEEG 211','COMP 202','COMP 206','EEEG 217',
-      'MATH 207','MCSC 202','COMP 204','COMP 231','COMP 232','COMP 207',
-      'COMP 317','MGTS 301','COMP 307','COMP 315','COMP 316','COMP 342','COMP 311',
-      'COMP 343','COMP 302','COMP 409','COMP 314','COMP 323','COMP 341','COMP 313',
-      'MGTS 403','COMP 401','COMP 472','MGTS 402','COMP 486','COMP 408'
-    ],
-    'CE': [
-      'MATH 101','PHYS 101','COMP 102','ENGG 111','CHEM 101','EDRG 101','ENGG 101',
-      'MATH 104','PHYS 102','COMP 116','ENGG 112','ENGT 105','ENVE 101','EDRG 102','ENGG 102',
-      'MATH 208','MCSC 201','EEEG 202','EEEG 211','COMP 202','COMP 206','EEEG 217',
-      'MATH 207','MCSC 202','COMP 204','COMP 231','COMP 232','COMP 207',
-      'MGTS 301','COMP 307','COMP 315','COEG 304','COMP 310','COMP 303','COMP 301',
-      'COMP 304','COMP 302','COMP 342','COMP 314','COMP 306','COMP 343','COMP 308',
-      'MGTS 403','COMP 401','COMP 472','COMP 409','COMP 407','MGTS 402','COMP 408'
-    ],
-  };
-
-  List<String> get currentSubjects =>
-      selectedDepartment != null ? subjectsByDept[selectedDepartment!] ?? [] : [];
-
-  // API Base URL
+  
+  // API Base URL -match with backend
   static const String baseUrl = 'http://192.168.16.245:8000';
 
   @override
@@ -59,7 +31,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
 
   Future<void> _loadTutors() async {
     setState(() => _isLoadingTutors = true);
-
+    
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
@@ -92,64 +64,93 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     }
   }
 
-  // ---------------- Filtered tutors ----------------
-  List<Map<String, dynamic>> get filteredTutors {
-    List<Map<String, dynamic>> list = _tutors;
+  Future<void> _handlelogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
 
-    if (selectedDepartment != null && selectedDepartment!.isNotEmpty) {
-      list = list.where((tutor) {
-        final dept = tutor['department'] ?? '';
-        return dept == selectedDepartment;
-      }).toList();
+    if (confirmed == true && mounted) {
+      try {
+        await ApiService.logout();
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
+      }
     }
-
-    if (selectedSubject != null && selectedSubject!.isNotEmpty) {
-      list = list.where((tutor) {
-        final subj = tutor['subject'] ?? '';
-        return subj == selectedSubject;
-      }).toList();
-    }
-
-    return list;
   }
 
-  void _onBottomNavTap(int index) {
-    if (index == 1) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const TuteeProfilePage(isPrivateView: true)),
-      );
-    } else {
-      setState(() => _selectedIndex = index);
-    }
+ void _onBottomNavTap(int index) {
+  if(index == 1){
+    Navigator.push(
+      context, 
+      MaterialPageRoute(
+        builder: (context) => const TuteeProfilePage(isPrivateView: true)
+      ),
+    );
   }
+  else if (index == 2) {
+    _handlelogout();
+  }
+  else {
+    // Only update _selectedIndex for Home (index 0)
+    setState(() => _selectedIndex = index);
+  }
+}
 
   void _viewTutorProfile(Map<String, dynamic> tutor) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const TutorProfilePage(isOwner: false)),
+      MaterialPageRoute(
+        builder: (context) => const TutorProfilePage(isOwner: false),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final tutorsList = filteredTutors;
-    final tutorsToShow = _showAllTutors
-        ? tutorsList
-        : (tutorsList.length > 5 ? tutorsList.sublist(0, 5) : tutorsList);
+    // Determine how many tutors to show
+    final tutorsToShow = _showAllTutors 
+        ? _tutors 
+        : (_tutors.length > 5 ? _tutors.sublist(0, 5) : _tutors);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFF305E9D),
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: false, // Remove back arrow
         title: Row(
           children: [
             Image.asset('assets/images/ku_logo.png', height: 50),
             const SizedBox(width: 12),
             const Text(
               'KU Tutors',
-              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -166,7 +167,13 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ---------------- Search & Filters ----------------
-                      const Text('Search & Filters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text(
+                        'Search & Filters',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       TextField(
                         decoration: InputDecoration(
@@ -174,7 +181,10 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                           prefixIcon: const Icon(Icons.search),
                           filled: true,
                           fillColor: Colors.white,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -186,16 +196,26 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                                 filled: true,
                                 fillColor: Colors.white,
                                 hintText: 'Department',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
                               ),
-                              value: selectedDepartment,
-                              items: subjectsByDept.keys.map((dept) => DropdownMenuItem(value: dept, child: Text(dept))).toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedDepartment = value;
-                                  selectedSubject = null;
-                                });
-                              },
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'CS',
+                                  child: Text('CS'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Math',
+                                  child: Text('Math'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Physics',
+                                  child: Text('Physics'),
+                                ),
+                              ],
+                              onChanged: (_) {},
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -204,16 +224,23 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.white,
-                                hintText: 'Subject',
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                hintText: 'Subject Code',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
                               ),
-                              value: (selectedSubject != null && currentSubjects.contains(selectedSubject)) ? selectedSubject : null,
-                              items: currentSubjects.map((subj) => DropdownMenuItem(value: subj, child: Text(subj))).toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedSubject = value;
-                                });
-                              },
+                              items: const [
+                                DropdownMenuItem(
+                                  value: '101',
+                                  child: Text('101'),
+                                ),
+                                DropdownMenuItem(
+                                  value: '102',
+                                  child: Text('102'),
+                                ),
+                              ],
+                              onChanged: (_) {},
                             ),
                           ),
                         ],
@@ -224,69 +251,132 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Browse Tutors', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          if (tutorsList.length > 5)
+                          const Text(
+                            'Browse Tutors',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          if (_tutors.length > 5)
                             TextButton(
-                              onPressed: () => setState(() => _showAllTutors = !_showAllTutors),
-                              child: Text(_showAllTutors ? 'Show Less' : 'Show More',
-                                  style: const TextStyle(color: Color(0xFF305E9D), fontWeight: FontWeight.bold)),
+                              onPressed: () {
+                                setState(() {
+                                  _showAllTutors = !_showAllTutors;
+                                });
+                              },
+                              child: Text(
+                                _showAllTutors ? 'Show Less' : 'Show More',
+                                style: const TextStyle(
+                                  color: Color(0xFF305E9D),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
                         ],
                       ),
                       const SizedBox(height: 8),
-
+                      
+                      // Loading state
                       if (_isLoadingTutors)
-                        const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
-                      else if (tutorsList.isEmpty)
-                        const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No tutors available')))
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      // No tutors found
+                      else if (_tutors.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: Text('No tutors available at the moment'),
+                          ),
+                        )
+                      // Display tutors
                       else
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Row(
-                            children: tutorsToShow.map((tutor) {
-                              final userName = tutor['user']?['first_name'] ?? 'Unknown';
-                              final lastName = tutor['user']?['last_name'] ?? '';
-                              final fullName = '$userName $lastName'.trim();
-                              final subject = tutor['subject'] ?? 'Not Specified';
-                              final rate = tutor['accountnumber'] ?? 'N/A';
-
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: TutorCard(
-                                  tutorName: fullName,
-                                  subject: subject,
-                                  rate: rate.toString().startsWith('Rs') ? rate : 'Rs. $rate/hr',
-                                  onTap: () => _viewTutorProfile(tutor),
-                                ),
-                              );
-                            }).toList(),
+                            children: [
+                              ...tutorsToShow.map((tutor) {
+                                final userName = tutor['user']?['first_name'] ?? 'Unknown';
+                                final lastName = tutor['user']?['last_name'] ?? '';
+                                final fullName = '$userName $lastName'.trim();
+                                final subject = tutor['subject'] ?? 'Not Specified';
+                                final rate = tutor['accountnumber'] ?? 'N/A';
+                                
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
+                                  child: TutorCard(
+                                    tutorName: fullName,
+                                    subject: subject,
+                                    rate: rate.toString().startsWith('Rs') 
+                                        ? rate 
+                                        : 'Rs. $rate/hr',
+                                    onTap: () => _viewTutorProfile(tutor),
+                                  ),
+                                );
+                              }),
+                            ],
                           ),
                         ),
-
                       const SizedBox(height: 20),
 
                       // ---------------- Demo Sessions ----------------
-                      const Text('Demo Sessions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text(
+                        'Demo Sessions',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Column(
                         children: const [
-                          SessionRow(tutor: 'Amit Sharma', subject: 'Physics', time: 'Mon 2 PM', actionText: 'Book Class'),
-                          SessionRow(tutor: 'Sita Koirala', subject: 'Math', time: 'Wed 1 PM', actionText: 'Book Class'),
+                          SessionRow(
+                            tutor: 'Amit Sharma',
+                            subject: 'Physics',
+                            time: 'Mon 2 PM',
+                            actionText: 'Book Class',
+                          ),
+                          SessionRow(
+                            tutor: 'Sita Koirala',
+                            subject: 'Math',
+                            time: 'Wed 1 PM',
+                            actionText: 'Book Class',
+                          ),
                         ],
                       ),
                       const SizedBox(height: 20),
 
                       // ---------------- Classes Booked ----------------
-                      const Text('Classes Booked', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      const Text(
+                        'Classes Booked',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Column(
                         children: const [
-                          SessionRow(tutor: 'Amit Sharma', subject: 'Physics', time: 'Tue 3 PM', actionText: 'Booked ✅'),
-                          SessionRow(tutor: 'Sita Koirala', subject: 'Math', time: 'Thu 4 PM', actionText: 'Booked ✅'),
+                          SessionRow(
+                            tutor: 'Amit Sharma',
+                            subject: 'Physics',
+                            time: 'Tue 3 PM',
+                            actionText: 'Booked ✅',
+                          ),
+                          SessionRow(
+                            tutor: 'Sita Koirala',
+                            subject: 'Math',
+                            time: 'Thu 4 PM',
+                            actionText: 'Booked ✅',
+                          ),
                         ],
                       ),
 
-                      const Spacer(),
+                      const Spacer(), // fills remaining space to avoid overflow
                     ],
                   ),
                 ),
@@ -296,6 +386,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
         ),
       ),
 
+      // ---------------- Bottom Navigation ----------------
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF305E9D),
@@ -303,6 +394,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'Log Out'),
         ],
       ),
     );
@@ -333,15 +425,38 @@ class TutorCard extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         child: Column(
           children: [
-            const CircleAvatar(radius: 30, backgroundColor: Color(0xFF305E9D), child: Icon(Icons.person, color: Colors.white)),
+            const CircleAvatar(
+              radius: 30,
+              backgroundColor: Color(0xFF305E9D),
+              child: Icon(Icons.person, color: Colors.white),
+            ),
             const SizedBox(height: 8),
-            Text(tutorName, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
-            Text(subject, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text(rate, style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+            Text(
+              tutorName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              subject,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              rate,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 4),
             ElevatedButton(
               onPressed: onTap,
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF305E9D), minimumSize: const Size.fromHeight(30), padding: const EdgeInsets.symmetric(vertical: 4)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF305E9D),
+                minimumSize: const Size.fromHeight(30),
+                padding: const EdgeInsets.symmetric(vertical: 4),
+              ),
               child: const Text('View Profile', style: TextStyle(fontSize: 12)),
             ),
           ],
@@ -358,7 +473,13 @@ class SessionRow extends StatelessWidget {
   final String time;
   final String actionText;
 
-  const SessionRow({super.key, required this.tutor, required this.subject, required this.time, required this.actionText});
+  const SessionRow({
+    super.key,
+    required this.tutor,
+    required this.subject,
+    required this.time,
+    required this.actionText,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -369,34 +490,21 @@ class SessionRow extends StatelessWidget {
         title: Text(tutor),
         subtitle: Text(subject),
         trailing: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min, // prevents extra vertical space
           children: [
             Text(time),
             const SizedBox(height: 4),
             ElevatedButton(
               onPressed: () {},
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF305E9D), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), minimumSize: const Size(80, 25)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF305E9D),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(80, 25),
+              ),
               child: Text(actionText, style: const TextStyle(fontSize: 12)),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ---------------- Tutor Profile Page ----------------
-class TutorProfilePage extends StatelessWidget {
-  final bool isOwner;
-  const TutorProfilePage({super.key, this.isOwner = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF4A7AB8),
-      appBar: AppBar(title: const Text("Tutor Profile")),
-      body: const Center(
-        child: Text("Tutor Profile Page", style: TextStyle(color: Colors.white, fontSize: 20)),
       ),
     );
   }
