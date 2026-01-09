@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from .models import TutorProfile, TuteeProfile, Session, TemporarySignup
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
+from .models import AvailabilitySlot
 import random
 import secrets
 
@@ -136,3 +137,9 @@ class UpdateProfileSerializer(serializers.Serializer):
     subject_code = serializers.CharField(required=False)  # For tutors
     rate = serializers.CharField(required=False)  # For tutors
     subject_required = serializers.CharField(required=False)  # For tutees
+
+class AvailabilitySlotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AvailabilitySlot
+        fields = ['id', 'day', 'time', 'status', 'created_at']
+        read_only_fields = ['id', 'created_at']

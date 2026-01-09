@@ -79,3 +79,35 @@ class Session(models.Model):
     
     def __str__(self):
         return f"{self.tutor.user.username} with {self.tutee.user.username} on {self.date}"
+    
+class AvailabilitySlot(models.Model):
+    """
+    Represents a tutor's available time slot
+    """
+    STATUS_CHOICES = [
+        ('Available', 'Available'),
+        ('Booked', 'Booked'),
+    ]
+    
+    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='availability_slots')
+    day = models.CharField(max_length=20)  # e.g., "Monday", "Tuesday"
+    time = models.CharField(max_length=50)  # e.g., "2 PM - 3 PM"
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Available')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['day', 'time']
+        unique_together = ['tutor', 'day', 'time']  # Prevent duplicate slots
+    
+    def __str__(self):
+        return f"{self.tutor.user.username} - {self.day} {self.time} ({self.status})"
+
+class Session(models.Model):
+    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='sessions')
+    tutee = models.ForeignKey(TuteeProfile, on_delete=models.CASCADE, related_name='sessions')
+    date = models.DateField()
+    time = models.TimeField()
+    completed = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"{self.tutor.user.username} with {self.tutee.user.username} on {self.date}"

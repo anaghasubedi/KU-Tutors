@@ -6,10 +6,10 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.contrib.auth.hashers import make_password
-from .models import TutorProfile, TuteeProfile, TemporarySignup
+from .models import TutorProfile, TuteeProfile, TemporarySignup, AvailabilitySlot
 from .serializers import (
     SignupSerializer, LoginSerializer, UserSerializer, 
-    VerifyEmailSerializer, TutorProfileSerializer
+    VerifyEmailSerializer, TutorProfileSerializer, AvailabilitySlotSerializer
 )
 import random
 import secrets
@@ -392,3 +392,106 @@ def list_tutors(request):
         return Response({
             'error': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def manage_availability(request):
+    """
+    GET: List all availability slots for the tutor
+    POST: Create a new availability slot
+    """
+    user = request.user
+    
+    # Check if user is a tutor
+    if user.role != 'Tutor':
+        return Response({
+            'error': 'Only tutors can manage availability'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        tutor_profile = user.tutor_profile
+    except:
+        return Response({
+            'error': 'Tutor profile not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'GET':
+        slots = AvailabilitySlot.objects.filter(tutor=tutor_profile)
+        serializer = AvailabilitySlotSerializer(slots, many=True)
+        return Response({
+            'slots': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    elif request.method == 'POST':
+        # Create new availability slot
+        day = request.data.get('day')
+        time = request.data.get('time')
+        
+        if not day or not time:
+            return Response({
+                'error': 'Day and time are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if slot already exists
+        if AvailabilitySlot.objects.filter(tutor=tutor_profile, day=day, time=time).exists():
+            return Response({
+                'error': 'This time slot already exists'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        slot = AvailabilitySlot.objects.create(
+            tutor=tutor_profile,
+            day=day,
+            time=time,
+            status='Available'
+        )
+        
+        serializer = AvailabilitySlotSerializer(slot)
+        return Response({
+            'message': 'Availability slot created',
+            'slot': serializer.data
+        }, status=status.HTTP_201_CREATED)
+
+@api_view(['PATCH', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def update_availability(request, slot_id):
+    """
+    PATCH: Update an availability slot (e.g., change status or time)
+    DELETE: Delete an availability slot
+    """
+    user = request.user
+    
+    if user.role != 'Tutor':
+        return Response({
+            'error': 'Only tutors can update availability'
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    try:
+        tutor_profile = user.tutor_profile
+        slot = AvailabilitySlot.objects.get(id=slot_id, tutor=tutor_profile)
+    except AvailabilitySlot.DoesNotExist:
+        return Response({
+            'error': 'Availability slot not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+    if request.method == 'PATCH':
+        # Update slot
+        if 'day' in request.data:
+            slot.day = request.data['day']
+        if 'time' in request.data:
+            slot.time = request.data['time']
+        if 'status' in request.data:
+            slot.status = request.data['status']
+        
+        slot.save()
+        serializer = AvailabilitySlotSerializer(slot)
+        
+        return Response({
+            'message': 'Availability slot updated',
+            'slot': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    elif request.method == 'DELETE':
+        slot.delete()
+        return Response({
+            'message': 'Availability slot deleted'
+        }, status=status.HTTP_200_OK)
