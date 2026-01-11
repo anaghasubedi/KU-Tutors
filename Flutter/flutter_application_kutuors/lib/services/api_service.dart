@@ -259,7 +259,7 @@ class ApiService {
     }
   }
 
-  // Get profile data for update-profile endpoint (NEW)
+  // Get profile data for update-profile endpoint 
   static Future<Map<String, dynamic>> getProfileData() async {
     try {
       final token = await getToken();
@@ -290,7 +290,7 @@ class ApiService {
     }
   }
 
-  // Update user profile (NEW - matches your Django endpoint)
+  // Update user profile 
   static Future<Map<String, dynamic>> updateProfileData({
     String? name,
     String? phoneNumber,
@@ -340,7 +340,7 @@ class ApiService {
     }
   }
 
-  // Upload profile image (NEW)
+  // Upload profile image 
   static Future<Map<String, dynamic>> uploadProfileImage(File imageFile) async {
     try {
       final token = await getToken();
@@ -377,7 +377,7 @@ class ApiService {
     }
   }
 
-  // Delete account (NEW - updated endpoint)
+  // Delete account 
   static Future<void> deleteAccount() async {
     try {
       final token = await getToken();
@@ -409,7 +409,7 @@ class ApiService {
     }
   }
 
-  // List all available tutors (NEW)
+  // List all available tutors 
   static Future<Map<String, dynamic>> listTutors() async {
     try {
       final token = await getToken();
@@ -440,7 +440,7 @@ class ApiService {
     }
   }
 
-  // Get specific tutor profile (NEW - if needed for viewing individual tutor)
+  // Get specific tutor profile 
   static Future<Map<String, dynamic>> getTutorProfile(int tutorId) async {
     try {
       final token = await getToken();
@@ -471,7 +471,7 @@ class ApiService {
     }
   }
 
-  // Update user profile (DEPRECATED - keep for backward compatibility)
+  // Update user profile 
   static Future<Map<String, dynamic>> updateProfile({
     required String firstName,
     required String lastName,

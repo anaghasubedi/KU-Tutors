@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import TutorProfile, TuteeProfile, Session, TemporarySignup
+from .models import TutorProfile, TuteeProfile, Session, TemporarySignup, Availability
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 from .models import AvailabilitySlot
@@ -138,8 +138,21 @@ class UpdateProfileSerializer(serializers.Serializer):
     rate = serializers.CharField(required=False)  # For tutors
     subject_required = serializers.CharField(required=False)  # For tutees
 
-class AvailabilitySlotSerializer(serializers.ModelSerializer):
+class AvailabilitySerializer(serializers.ModelSerializer):
+    formatted_date = serializers.SerializerMethodField()
+    day_name = serializers.SerializerMethodField()
+    formatted_time = serializers.SerializerMethodField()
+    
     class Meta:
-        model = AvailabilitySlot
-        fields = ['id', 'day', 'time', 'status', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        model = Availability
+        fields = ['id', 'date', 'formatted_date', 'day_name', 'start_time', 'end_time', 'formatted_time', 'status']
+        read_only_fields = ['id']
+    
+    def get_formatted_date(self, obj):
+        return obj.formatted_date()
+    
+    def get_day_name(self, obj):
+        return obj.day_name()
+    
+    def get_formatted_time(self, obj):
+        return obj.formatted_time()

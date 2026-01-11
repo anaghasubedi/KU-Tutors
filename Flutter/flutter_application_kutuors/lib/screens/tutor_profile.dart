@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TutorProfilePage extends StatefulWidget {
-  final bool isOwner; // true: tutor viewing their own profile (private), false: public view
+  final bool isOwner;
 
   const TutorProfilePage({super.key, this.isOwner = true});
 
@@ -19,7 +19,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   bool _isLoading = true;
   String? _token;
 
-  // Data controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _kuEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -29,19 +28,15 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   final TextEditingController _rateController = TextEditingController();
 
   List<String> _subjects = [];
-  final List<Map<String, String>> _availability = [
-    {"day": "Monday", "time": "2 PM - 3 PM", "status": "Available"},
-    {"day": "Tuesday", "time": "1 PM - 2 PM", "status": "Booked"},
-    {"day": "Wednesday", "time": "3 PM - 4 PM", "status": "Available"},
-  ];
+  List<Map<String, dynamic>> _availability = [];
 
-  // API Base URL - Update this to match your backend
-  static const String baseUrl = 'http://192.168.16.245:8000'; // Use 10.0.2.2 for Android emulator
+  static const String baseUrl = 'http://192.168.16.245:8000';
 
   @override
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadAvailability();
   }
 
   Future<void> _loadUserProfile() async {
@@ -51,9 +46,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString('auth_token');
 
-      if (_token == null) {
-        throw Exception('No authentication token found');
-      }
+      if (_token == null) throw Exception('No authentication token found');
 
       final response = await http.get(
         Uri.parse('$baseUrl/api/update-profile/'),
@@ -75,16 +68,12 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _subjectCodeController.text = data['subject_code'] ?? '';
           _rateController.text = data['rate'] ?? '';
           
-          // Parse subjects from comma-separated string
           if (data['subject'] != null && data['subject'].isNotEmpty) {
             _subjects = data['subject'].split(',').map((s) => s.trim()).toList();
           }
           
           _isLoading = false;
         });
-
-        // Load profile picture if available
-        // await _loadProfilePicture();
       } else {
         throw Exception('Failed to load profile');
       }
@@ -99,6 +88,192 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     }
   }
 
+  Future<void> _loadAvailability() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/tutor/availability/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _availability = List<Map<String, dynamic>>.from(data['availabilities']);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading availability: $e');
+    }
+  }
+
+  Future<void> _showAddAvailabilityDialog() async {
+    DateTime? selectedDate;
+    TimeOfDay? startTime;
+    TimeOfDay? endTime;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Availability'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: Text(selectedDate == null 
+                    ? 'Select Date' 
+                    : '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'),
+                  trailing: const Icon(Icons.calendar_today),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (date != null) setDialogState(() => selectedDate = date);
+                  },
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  title: Text(startTime == null ? 'Select Start Time' : 'Start: ${startTime!.format(context)}'),
+                  trailing: const Icon(Icons.access_time),
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.now(),
+                    );
+                    if (time != null) setDialogState(() => startTime = time);
+                  },
+                ),
+                ListTile(
+                  title: Text(endTime == null ? 'Select End Time' : 'End: ${endTime!.format(context)}'),
+                  trailing: const Icon(Icons.access_time),
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay.now(),
+                    );
+                    if (time != null) setDialogState(() => endTime = time);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (selectedDate != null && startTime != null && endTime != null) {
+                  Navigator.pop(context);
+                  await _addAvailability(selectedDate!, startTime!, endTime!);
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addAvailability(DateTime date, TimeOfDay startTime, TimeOfDay endTime) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/tutor/availability/add/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'date': '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+          'start_time': '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}',
+          'end_time': '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        await _loadAvailability();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Availability added successfully')),
+          );
+        }
+      } else {
+        final error = json.decode(response.body);
+        throw Exception(error['error'] ?? 'Failed to add availability');
+      }
+    } catch (e) {
+      debugPrint('Error adding availability: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add availability: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAvailability(int id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/api/tutor/availability/$id/delete/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        await _loadAvailability();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Availability deleted')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error deleting availability: $e');
+    }
+  }
+
+  Future<void> _updateAvailabilityStatus(int id, String newStatus) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/tutor/availability/$id/update/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'status': newStatus}),
+      );
+
+      if (response.statusCode == 200) {
+        await _loadAvailability();
+      }
+    } catch (e) {
+      debugPrint('Error updating availability: $e');
+    }
+  }
+
   Future<void> _pickImage() async {
     try {
       final XFile? pickedFile =
@@ -109,7 +284,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _imageBytes = bytes;
         });
         
-        // Upload image to backend
         await _uploadImage(pickedFile);
       }
     } catch (e) {
@@ -160,7 +334,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   }
 
   Future<void> _deleteAccount() async {
-    // Show confirmation dialog
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -197,7 +370,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
       );
 
       if (response.statusCode == 200) {
-        // Clear stored data
         await prefs.clear();
         
         if (mounted) {
@@ -205,7 +377,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
             const SnackBar(content: Text('Account deleted successfully')),
           );
           
-          // Navigate to login page
           Navigator.pushReplacementNamed(context, '/login');
         }
       } else {
@@ -248,7 +419,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
             const SnackBar(content: Text('Profile saved successfully')),
           );
         }
-        // Reload profile to update subjects list
         await _loadUserProfile();
       } else {
         final error = json.decode(response.body);
@@ -269,34 +439,28 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFF4A7AB8),
-        body: Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
+        body: Center(child: CircularProgressIndicator(color: Colors.white)),
       );
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFF4A7AB8),
       appBar: AppBar(
-  backgroundColor: const Color(0xFF4A7AB8),
-  elevation: 0,
-  automaticallyImplyLeading: false,
-  title: Text(
-    widget.isOwner ? "My Profile" : "Tutor Profile",
-    style: const TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.bold,
-      color: Colors.white,
-    ),
-  ),
-  centerTitle: true,
-),
+        backgroundColor: const Color(0xFF4A7AB8),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Text(
+          widget.isOwner ? "My Profile" : "Tutor Profile",
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        centerTitle: true,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // ---------------- Tutor Info Card ----------------
+              // Tutor Info Card
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -326,21 +490,15 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    widget.isOwner
-                                        ? Icons.add_a_photo
-                                        : Icons.person,
+                                    widget.isOwner ? Icons.add_a_photo : Icons.person,
                                     size: 40,
                                     color: Colors.grey,
                                   ),
-                                  if (widget.isOwner)
-                                    const SizedBox(height: 4),
+                                  if (widget.isOwner) const SizedBox(height: 4),
                                   if (widget.isOwner)
                                     const Text(
                                       'Add Photo',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey,
-                                      ),
+                                      style: TextStyle(fontSize: 10, color: Colors.grey),
                                     ),
                                 ],
                               )
@@ -351,11 +509,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                       color: Colors.black.withValues(alpha: 0.3),
                                     ),
                                     child: const Center(
-                                      child: Icon(
-                                        Icons.edit,
-                                        color: Colors.white,
-                                        size: 30,
-                                      ),
+                                      child: Icon(Icons.edit, color: Colors.white, size: 30),
                                     ),
                                   )
                                 : null,
@@ -378,7 +532,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                     _buildEditableField("Rate", _rateController),
                     const SizedBox(height: 24),
 
-                    // Save button for private view
                     if (widget.isOwner)
                       SizedBox(
                         width: double.infinity,
@@ -392,10 +545,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                               borderRadius: BorderRadius.circular(24),
                             ),
                           ),
-                          child: const Text(
-                            "Save Profile",
-                            style: TextStyle(fontSize: 16),
-                          ),
+                          child: const Text("Save Profile", style: TextStyle(fontSize: 16)),
                         ),
                       ),
                   ],
@@ -404,91 +554,108 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
 
               const SizedBox(height: 20),
 
-              // ---------------- Subjects ----------------
+              // Subjects Section
               if (_subjects.isNotEmpty) ...[
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Subjects",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.white),
-                  ),
+                  child: Text("Subjects", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  children: _subjects
-                      .map(
-                        (sub) => Chip(
-                          label: Text(sub),
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      )
-                      .toList(),
+                  children: _subjects.map((sub) => Chip(
+                    label: Text(sub),
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  )).toList(),
                 ),
                 const SizedBox(height: 20),
               ],
 
-              // ---------------- Availability ----------------
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Availability",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.white),
-                ),
+              // Dynamic Availability Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("Availability", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                  if (widget.isOwner)
+                    ElevatedButton.icon(
+                      onPressed: _showAddAvailabilityDialog,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF4A7AB8),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 8),
-              Column(
-                children: _availability.map((slot) {
-                  final isAvailable = slot["status"] == "Available";
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    child: ListTile(
-                      title: Text("${slot["day"]} | ${slot["time"]}"),
-                      trailing: widget.isOwner
-                          ? Text(
-                              slot["status"]!,
-                              style: TextStyle(
-                                  color: isAvailable
-                                      ? Colors.green
-                                      : Colors.red),
-                            )
-                          : isAvailable
-                              ? ElevatedButton(
-                                  onPressed: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                          content: Text(
-                                              "Booked demo on ${slot["day"]}")),
-                                    );
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF4A7AB8),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 16, vertical: 8),
-                                  ),
-                                  child: const Text(
-                                    "Book Demo",
-                                    style: TextStyle(fontSize: 14),
-                                  ),
-                                )
-                              : const Text("Booked"),
+              
+              _availability.isEmpty
+                  ? const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('No availability slots added yet', textAlign: TextAlign.center),
+                      ),
+                    )
+                  : Column(
+                      children: _availability.map((slot) {
+                        final isAvailable = slot['status'] == 'Available';
+                        final dayName = slot['day_name'] ?? '';
+                        final formattedDate = slot['formatted_date'] ?? slot['date'];
+                        
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          child: ListTile(
+                            title: Text("$dayName, $formattedDate"),
+                            subtitle: Text(slot['formatted_time'] ?? ''),
+                            trailing: widget.isOwner
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      DropdownButton<String>(
+                                        value: slot['status'],
+                                        items: const [
+                                          DropdownMenuItem(value: 'Available', child: Text('Available')),
+                                          DropdownMenuItem(value: 'Booked', child: Text('Booked')),
+                                          DropdownMenuItem(value: 'Unavailable', child: Text('Unavailable')),
+                                        ],
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            _updateAvailabilityStatus(slot['id'], value);
+                                          }
+                                        },
+                                        underline: Container(),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () => _deleteAvailability(slot['id']),
+                                      ),
+                                    ],
+                                  )
+                                : isAvailable
+                                    ? ElevatedButton(
+                                        onPressed: () {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text("Booked demo on ${slot['day']}")),
+                                          );
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF4A7AB8),
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        ),
+                                        child: const Text("Book Demo", style: TextStyle(fontSize: 14)),
+                                      )
+                                    : Text(slot['status'], style: const TextStyle(color: Colors.red)),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                  );
-                }).toList(),
-              ),
 
               const SizedBox(height: 24),
 
-              // ---------------- Delete Account Button ----------------
+              // Delete Account Button
               if (widget.isOwner) ...[
                 SizedBox(
                   width: double.infinity,
@@ -498,9 +665,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(24),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                     ),
                     child: const Text("Delete Account"),
                   ),
@@ -522,8 +687,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           width: 120,
           child: Text(
             "$label :",
-            style: const TextStyle(
-                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
           ),
         ),
         Expanded(
@@ -534,10 +698,8 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 8),
-                    enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white)),
-                    focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white)),
+                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+                    focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
                   ),
                 )
               : Text(

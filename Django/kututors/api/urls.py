@@ -22,4 +22,23 @@ urlpatterns = [
     
     # Tutor Browsing
     path('list-tutors/', views.list_tutors, name='list_tutors'),
+    path('search-tutors/', views.search_tutors_by_subject, name='search_tutors'),
+    
+    # Subject Management
+    path('departments/', views.list_departments, name='list_departments'),
+    path('subjects/', views.list_subjects, name='list_subjects'),
+    
+    # Tutor Subjects
+    path('tutor/subjects/', views.get_tutor_subjects, name='get_tutor_subjects'),
+    path('tutor/subjects/add/', views.add_tutor_subjects, name='add_tutor_subjects'),
+    path('tutor/subjects/<int:subject_id>/remove/', views.remove_tutor_subject, name='remove_tutor_subject'),
+    
+    # Tutee Subjects
+    path('tutee/subjects/add/', views.add_tutee_subjects, name='add_tutee_subjects'),
+    
+    # Availability Management (Date-based)
+    path('tutor/availability/', views.get_tutor_availability, name='get_tutor_availability'),
+    path('tutor/availability/add/', views.add_availability, name='add_availability'),
+    path('tutor/availability/<int:availability_id>/update/', views.update_availability, name='update_availability'),
+    path('tutor/availability/<int:availability_id>/delete/', views.delete_availability, name='delete_availability'),
 ]

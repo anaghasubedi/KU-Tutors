@@ -11,8 +11,9 @@ from .serializers import (
     SignupSerializer, LoginSerializer, UserSerializer, 
     VerifyEmailSerializer, TutorProfileSerializer, AvailabilitySlotSerializer
 )
+from datetime import datetime, date
 import random
-import secrets
+import secrets 
 
 User = get_user_model()
 
@@ -374,124 +375,206 @@ def upload_profile_image(request):
             'error': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
 
+# Add these views to your views.py file
+
+from .models import Availability
+from datetime import datetime, date
+
 @api_view(['GET'])
-@permission_classes([AllowAny])
-def list_tutors(request):
-    """
-    List all available tutors with their profiles
-    """
-    try:
-        tutors = TutorProfile.objects.filter(available=True).select_related('user')
-        serializer = TutorProfileSerializer(tutors, many=True)
-        
-        return Response({
-            'tutors': serializer.data,
-            'count': tutors.count()
-        }, status=status.HTTP_200_OK)
-    except Exception as e:
-        return Response({
-            'error': str(e)
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
-def manage_availability(request):
+def get_tutor_availability(request):
     """
-    GET: List all availability slots for the tutor
-    POST: Create a new availability slot
+    Get availability slots for current tutor or specific tutor
+    Query params: tutor_id (optional), date (optional), from_date (optional)
     """
-    user = request.user
-    
-    # Check if user is a tutor
-    if user.role != 'Tutor':
-        return Response({
-            'error': 'Only tutors can manage availability'
-        }, status=status.HTTP_403_FORBIDDEN)
+    try:
+        tutor_id = request.GET.get('tutor_id')
+        filter_date = request.GET.get('date')  # Single date filter
+        from_date = request.GET.get('from_date')  # Future dates filter
+        
+        if tutor_id:
+            tutor = TutorProfile.objects.get(id=tutor_id)
+        else:
+            if request.user.role != 'Tutor':
+                return Response({'error': 'Only tutors can view their availability'}, 
+                              status=status.HTTP_403_FORBIDDEN)
+            tutor = request.user.tutor_profile
+        
+        availabilities = Availability.objects.filter(tutor=tutor)
+        
+        # Filter by specific date
+        if filter_date:
+            filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
+            availabilities = availabilities.filter(date=filter_date_obj)
+        
+        # Filter future dates only
+        elif from_date:
+            from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date()
+            availabilities = availabilities.filter(date__gte=from_date_obj)
+        else:
+            # Default: show only future dates
+            availabilities = availabilities.filter(date__gte=date.today())
+        
+        data = [{
+            'id': a.id,
+            'date': a.date.strftime('%Y-%m-%d'),
+            'formatted_date': a.formatted_date(),
+            'day_name': a.day_name(),
+            'start_time': a.start_time.strftime('%H:%M'),
+            'end_time': a.end_time.strftime('%H:%M'),
+            'formatted_time': a.formatted_time(),
+            'status': a.status,
+        } for a in availabilities]
+        
+        return Response({'availabilities': data, 'count': len(data)}, status=status.HTTP_200_OK)
+    except TutorProfile.DoesNotExist:
+        return Response({'error': 'Tutor not found'}, status=status.HTTP_404_NOT_FOUND)
+    except ValueError:
+        return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_availability(request):
+    """
+    Add availability slot for tutor on a specific date
+    Body: {"date": "2026-01-15", "start_time": "14:00", "end_time": "15:00"}
+    """
+    if request.user.role != 'Tutor':
+        return Response({'error': 'Only tutors can add availability'}, 
+                       status=status.HTTP_403_FORBIDDEN)
     
     try:
-        tutor_profile = user.tutor_profile
-    except:
-        return Response({
-            'error': 'Tutor profile not found'
-        }, status=status.HTTP_404_NOT_FOUND)
-    
-    if request.method == 'GET':
-        slots = AvailabilitySlot.objects.filter(tutor=tutor_profile)
-        serializer = AvailabilitySlotSerializer(slots, many=True)
-        return Response({
-            'slots': serializer.data
-        }, status=status.HTTP_200_OK)
-    
-    elif request.method == 'POST':
-        # Create new availability slot
-        day = request.data.get('day')
-        time = request.data.get('time')
+        tutor = request.user.tutor_profile
+        date_str = request.data.get('date')
+        start_time = request.data.get('start_time')
+        end_time = request.data.get('end_time')
         
-        if not day or not time:
-            return Response({
-                'error': 'Day and time are required'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        if not all([date_str, start_time, end_time]):
+            return Response({'error': 'Date, start_time, and end_time are required'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
+        
+        # Parse date and time strings
+        availability_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        start = datetime.strptime(start_time, '%H:%M').time()
+        end = datetime.strptime(end_time, '%H:%M').time()
+        
+        # Check if date is in the past
+        if availability_date < date.today():
+            return Response({'error': 'Cannot add availability for past dates'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
         
         # Check if slot already exists
-        if AvailabilitySlot.objects.filter(tutor=tutor_profile, day=day, time=time).exists():
-            return Response({
-                'error': 'This time slot already exists'
-            }, status=status.HTTP_400_BAD_REQUEST)
+        if Availability.objects.filter(tutor=tutor, date=availability_date, start_time=start).exists():
+            return Response({'error': 'This time slot already exists for this date'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
         
-        slot = AvailabilitySlot.objects.create(
-            tutor=tutor_profile,
-            day=day,
-            time=time,
+        # Create availability
+        availability = Availability.objects.create(
+            tutor=tutor,
+            date=availability_date,
+            start_time=start,
+            end_time=end,
             status='Available'
         )
         
-        serializer = AvailabilitySlotSerializer(slot)
         return Response({
-            'message': 'Availability slot created',
-            'slot': serializer.data
+            'message': 'Availability added successfully',
+            'availability': {
+                'id': availability.id,
+                'date': availability.date.strftime('%Y-%m-%d'),
+                'formatted_date': availability.formatted_date(),
+                'day_name': availability.day_name(),
+                'start_time': availability.start_time.strftime('%H:%M'),
+                'end_time': availability.end_time.strftime('%H:%M'),
+                'formatted_time': availability.formatted_time(),
+                'status': availability.status,
+            }
         }, status=status.HTTP_201_CREATED)
+    except ValueError as e:
+        return Response({'error': 'Invalid date/time format. Use YYYY-MM-DD for date and HH:MM for time'}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['PATCH', 'DELETE'])
+@api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
-def update_availability(request, slot_id):
+def update_availability(request, availability_id):
     """
-    PATCH: Update an availability slot (e.g., change status or time)
-    DELETE: Delete an availability slot
+    Update availability slot
+    Body: {"date": "2026-01-15", "start_time": "14:00", "end_time": "15:00", "status": "Available"}
     """
-    user = request.user
-    
-    if user.role != 'Tutor':
-        return Response({
-            'error': 'Only tutors can update availability'
-        }, status=status.HTTP_403_FORBIDDEN)
+    if request.user.role != 'Tutor':
+        return Response({'error': 'Only tutors can update availability'}, 
+                       status=status.HTTP_403_FORBIDDEN)
     
     try:
-        tutor_profile = user.tutor_profile
-        slot = AvailabilitySlot.objects.get(id=slot_id, tutor=tutor_profile)
-    except AvailabilitySlot.DoesNotExist:
-        return Response({
-            'error': 'Availability slot not found'
-        }, status=status.HTTP_404_NOT_FOUND)
-    
-    if request.method == 'PATCH':
-        # Update slot
-        if 'day' in request.data:
-            slot.day = request.data['day']
-        if 'time' in request.data:
-            slot.time = request.data['time']
+        availability = Availability.objects.get(id=availability_id, tutor=request.user.tutor_profile)
+        
+        # Update fields if provided
+        if 'date' in request.data:
+            date_str = request.data['date']
+            new_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            if new_date < date.today():
+                return Response({'error': 'Cannot set availability for past dates'}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+            availability.date = new_date
+        
+        if 'start_time' in request.data:
+            start_time = request.data['start_time']
+            availability.start_time = datetime.strptime(start_time, '%H:%M').time()
+        
+        if 'end_time' in request.data:
+            end_time = request.data['end_time']
+            availability.end_time = datetime.strptime(end_time, '%H:%M').time()
+        
         if 'status' in request.data:
-            slot.status = request.data['status']
+            availability.status = request.data['status']
         
-        slot.save()
-        serializer = AvailabilitySlotSerializer(slot)
+        availability.save()
         
         return Response({
-            'message': 'Availability slot updated',
-            'slot': serializer.data
+            'message': 'Availability updated successfully',
+            'availability': {
+                'id': availability.id,
+                'date': availability.date.strftime('%Y-%m-%d'),
+                'formatted_date': availability.formatted_date(),
+                'day_name': availability.day_name(),
+                'start_time': availability.start_time.strftime('%H:%M'),
+                'end_time': availability.end_time.strftime('%H:%M'),
+                'formatted_time': availability.formatted_time(),
+                'status': availability.status,
+            }
         }, status=status.HTTP_200_OK)
+    except Availability.DoesNotExist:
+        return Response({'error': 'Availability slot not found'}, 
+                       status=status.HTTP_404_NOT_FOUND)
+    except ValueError as e:
+        return Response({'error': 'Invalid date/time format. Use YYYY-MM-DD for date and HH:MM for time'}, 
+                       status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_availability(request, availability_id):
+    """
+    Delete availability slot
+    """
+    if request.user.role != 'Tutor':
+        return Response({'error': 'Only tutors can delete availability'}, 
+                       status=status.HTTP_403_FORBIDDEN)
     
-    elif request.method == 'DELETE':
-        slot.delete()
-        return Response({
-            'message': 'Availability slot deleted'
-        }, status=status.HTTP_200_OK)
+    try:
+        availability = Availability.objects.get(id=availability_id, tutor=request.user.tutor_profile)
+        availability.delete()
+        
+        return Response({'message': 'Availability deleted successfully'}, 
+                       status=status.HTTP_200_OK)
+    except Availability.DoesNotExist:
+        return Response({'error': 'Availability slot not found'}, 
+                       status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

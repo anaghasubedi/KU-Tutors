@@ -80,34 +80,41 @@ class Session(models.Model):
     def __str__(self):
         return f"{self.tutor.user.username} with {self.tutee.user.username} on {self.date}"
     
-class AvailabilitySlot(models.Model):
+# Add this new model to your models.py file
+
+class Availability(models.Model):
     """
-    Represents a tutor's available time slot
+    Tutor's available time slots on specific dates
     """
     STATUS_CHOICES = [
         ('Available', 'Available'),
         ('Booked', 'Booked'),
+        ('Unavailable', 'Unavailable'),
     ]
     
-    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='availability_slots')
-    day = models.CharField(max_length=20)  # e.g., "Monday", "Tuesday"
-    time = models.CharField(max_length=50)  # e.g., "2 PM - 3 PM"
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Available')
+    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='availabilities')
+    date = models.DateField()  # Specific date instead of recurring day
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Available')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['day', 'time']
-        unique_together = ['tutor', 'day', 'time']  # Prevent duplicate slots
+        ordering = ['date', 'start_time']
+        unique_together = ['tutor', 'date', 'start_time']  # One slot per date and time
     
     def __str__(self):
-        return f"{self.tutor.user.username} - {self.day} {self.time} ({self.status})"
-
-class Session(models.Model):
-    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='sessions')
-    tutee = models.ForeignKey(TuteeProfile, on_delete=models.CASCADE, related_name='sessions')
-    date = models.DateField()
-    time = models.TimeField()
-    completed = models.BooleanField(default=False)
+        return f"{self.tutor.user.username} - {self.date} {self.start_time}-{self.end_time} ({self.status})"
     
-    def __str__(self):
-        return f"{self.tutor.user.username} with {self.tutee.user.username} on {self.date}"
+    def formatted_time(self):
+        """Returns formatted time string like '2 PM - 3 PM'"""
+        return f"{self.start_time.strftime('%I:%M %p')} - {self.end_time.strftime('%I:%M %p')}"
+    
+    def formatted_date(self):
+        """Returns formatted date string"""
+        return self.date.strftime('%B %d, %Y')  # e.g., "January 15, 2026"
+    
+    def day_name(self):
+        """Returns day name like 'Monday'"""
+        return self.date.strftime('%A')
