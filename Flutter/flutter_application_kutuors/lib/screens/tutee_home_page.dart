@@ -17,8 +17,14 @@ class TuteeHomePage extends StatefulWidget {
 class _TuteeHomePageState extends State<TuteeHomePage> {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _tutors = [];
+  List<Map<String, dynamic>> _filteredTutors = [];
   bool _isLoadingTutors = true;
   bool _showAllTutors = false;
+  
+  // Filter controllers
+  final TextEditingController _searchController = TextEditingController();
+  String? _selectedDepartment;
+  String? _selectedSubjectCode;
   
   // API Base URL -match with backend
   static const String baseUrl = 'http://192.168.16.1:8000';
@@ -27,6 +33,13 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   void initState() {
     super.initState();
     _loadTutors();
+    _searchController.addListener(_applyFilters);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadTutors() async {
@@ -48,6 +61,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
         final data = json.decode(response.body);
         setState(() {
           _tutors = List<Map<String, dynamic>>.from(data['tutors']);
+          _filteredTutors = _tutors;
           _isLoadingTutors = false;
         });
       } else {
@@ -62,6 +76,39 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
         );
       }
     }
+  }
+
+  void _applyFilters() {
+    setState(() {
+      _filteredTutors = _tutors.where((tutor) {
+        final searchQuery = _searchController.text.toLowerCase();
+        final userName = tutor['user']?['first_name']?.toLowerCase() ?? '';
+        final lastName = tutor['user']?['last_name']?.toLowerCase() ?? '';
+        final fullName = '$userName $lastName'.toLowerCase();
+        final subject = tutor['subject']?.toLowerCase() ?? '';
+        final department = tutor['department']?.toLowerCase() ?? '';
+        final subjectCode = tutor['subject_code']?.toLowerCase() ?? '';
+        
+        // Search filter - search in name, subject, department, and subject code
+        final matchesSearch = searchQuery.isEmpty ||
+            fullName.contains(searchQuery) ||
+            userName.contains(searchQuery) ||
+            lastName.contains(searchQuery) ||
+            subject.contains(searchQuery) ||
+            department.contains(searchQuery) ||
+            subjectCode.contains(searchQuery);
+        
+        // Department filter
+        final matchesDepartment = _selectedDepartment == null ||
+            department == _selectedDepartment!.toLowerCase();
+        
+        // Subject code filter
+        final matchesSubjectCode = _selectedSubjectCode == null ||
+            subjectCode == _selectedSubjectCode!.toLowerCase();
+        
+        return matchesSearch && matchesDepartment && matchesSubjectCode;
+      }).toList();
+    });
   }
 
   Future<void> _handlelogout() async {
@@ -132,8 +179,8 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   Widget build(BuildContext context) {
     // Determine how many tutors to show
     final tutorsToShow = _showAllTutors 
-        ? _tutors 
-        : (_tutors.length > 5 ? _tutors.sublist(0, 5) : _tutors);
+        ? _filteredTutors 
+        : (_filteredTutors.length > 5 ? _filteredTutors.sublist(0, 5) : _filteredTutors);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FA),
@@ -166,9 +213,9 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ---------------- Search ----------------
+                      // ---------------- Search & Filters ----------------
                       const Text(
-                        'Search Tutors',
+                        'Search & Filters',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -176,6 +223,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                       ),
                       const SizedBox(height: 8),
                       TextField(
+                        controller: _searchController,
                         decoration: InputDecoration(
                           hintText: 'Search tutors or subjects',
                           prefixIcon: const Icon(Icons.search),
@@ -187,20 +235,97 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _selectedDepartment,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white,
+                                hintText: 'Department',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                              items: const [
+                                DropdownMenuItem<String>(
+                                  child: Text('All Departments'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'CS',
+                                  child: Text('CS'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Math',
+                                  child: Text('Math'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'Physics',
+                                  child: Text('Physics'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedDepartment = value;
+                                  _applyFilters();
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              initialValue: _selectedSubjectCode,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white,
+                                hintText: 'Subject Code',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: Text('All Codes'),
+                                ),
+                                DropdownMenuItem(
+                                  value: '101',
+                                  child: Text('101'),
+                                ),
+                                DropdownMenuItem(
+                                  value: '102',
+                                  child: Text('102'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedSubjectCode = value;
+                                  _applyFilters();
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 20),
 
                       // ---------------- Browse Tutors ----------------
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Browse Tutors',
-                            style: TextStyle(
+                          Text(
+                            'Browse Tutors (${_filteredTutors.length})',
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
                           ),
-                          if (_tutors.length > 5)
+                          if (_filteredTutors.length > 5)
                             TextButton(
                               onPressed: () {
                                 setState(() {
@@ -228,11 +353,11 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                           ),
                         )
                       // No tutors found
-                      else if (_tutors.isEmpty)
+                      else if (_filteredTutors.isEmpty)
                         const Center(
                           child: Padding(
                             padding: EdgeInsets.all(20.0),
-                            child: Text('No tutors available at the moment'),
+                            child: Text('No tutors match your filters'),
                           ),
                         )
                       // Display tutors
