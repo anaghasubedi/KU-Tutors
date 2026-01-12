@@ -42,21 +42,29 @@ class CustomUser(AbstractUser):
     
     role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     contact = models.CharField(max_length=10, null=True, blank=True)
-    is_verified = models.BooleanField(default=False)  # Changed to False for email verification
+    is_verified = models.BooleanField(default=False)
     verification_code = models.CharField(max_length=6, blank=True, null=True)
+    is_online = models.BooleanField(default=False)  
+    last_seen = models.DateTimeField(null=True, blank=True)
     
     def __str__(self):
         return f"{self.username} ({self.role})"
 
 class TutorProfile(models.Model):
+    DEPARTMENT_CHOICES = [
+        ('Computer Science', 'Computer Science'),
+        ('Computer Engineering', 'Computer Engineering'),
+    ]
+    
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='tutor_profile')
     subject = models.CharField(max_length=50, default="Not Specified")
     semester = models.CharField(max_length=20, default="Unknown")
     subjectcode = models.CharField(max_length=10, default="Unknown")
+    department = models.CharField(max_length=50, choices=DEPARTMENT_CHOICES, default="Computer Science")
     available = models.BooleanField(default=True)
     accountnumber = models.CharField(max_length=20, default="Not Provided")
-    bankqr = models.ImageField(upload_to='tutor_profiles/qr/', null=True, blank=True)  # For payment QR
-    profile_picture = models.ImageField(upload_to='tutor_profiles/pictures/', null=True, blank=True)  # Profile picture
+    bankqr = models.ImageField(upload_to='tutor_profiles/qr/', null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='tutor_profiles/pictures/', null=True, blank=True)
     
     def __str__(self):
         return f"{self.user.username} - {self.subject}"
@@ -65,7 +73,7 @@ class TuteeProfile(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='tutee_profile')
     semester = models.CharField(max_length=20, default="Not Specified")
     subjectreqd = models.CharField(max_length=50, default="Unknown")
-    profile_picture = models.ImageField(upload_to='tutee_profiles/', null=True, blank=True)  # Profile picture
+    profile_picture = models.ImageField(upload_to='tutee_profiles/', null=True, blank=True)
     
     def __str__(self):
         return f"{self.user.username} - {self.semester}"
@@ -79,8 +87,6 @@ class Session(models.Model):
     
     def __str__(self):
         return f"{self.tutor.user.username} with {self.tutee.user.username} on {self.date}"
-    
-# Add this new model to your models.py file
 
 class Availability(models.Model):
     """
@@ -93,7 +99,7 @@ class Availability(models.Model):
     ]
     
     tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='availabilities')
-    date = models.DateField()  # Specific date instead of recurring day
+    date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Available')
@@ -102,7 +108,7 @@ class Availability(models.Model):
     
     class Meta:
         ordering = ['date', 'start_time']
-        unique_together = ['tutor', 'date', 'start_time']  # One slot per date and time
+        unique_together = ['tutor', 'date', 'start_time']
     
     def __str__(self):
         return f"{self.tutor.user.username} - {self.date} {self.start_time}-{self.end_time} ({self.status})"
@@ -113,16 +119,11 @@ class Availability(models.Model):
     
     def formatted_date(self):
         """Returns formatted date string"""
-        return self.date.strftime('%B %d, %Y')  # e.g., "January 15, 2026"
+        return self.date.strftime('%B %d, %Y')
     
     def day_name(self):
         """Returns day name like 'Monday'"""
         return self.date.strftime('%A')
-    
-class User(AbstractUser):
-    role = models.CharField(max_length=20)
-    is_online = models.BooleanField(default=False)  
-    last_seen = models.DateTimeField(null=True, blank=True)
 
 class UpdateLastSeenMiddleware:
     def __init__(self, get_response):

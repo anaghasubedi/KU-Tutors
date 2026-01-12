@@ -3,8 +3,8 @@ from django.contrib.auth import get_user_model
 from .models import TutorProfile, TuteeProfile, Session, TemporarySignup, Availability
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
-from datetime import timedelta, timezone
-from .models import AvailabilitySlot
+from datetime import timedelta
+from django.utils import timezone
 import random
 import secrets
 
@@ -53,8 +53,6 @@ class SignupSerializer(serializers.Serializer):
         salt = secrets.token_urlsafe(16)[:22]
         
         # Hash password with the generated salt
-        # make_password automatically uses PBKDF2 with salt
-        # Explicitly passing salt ensures we use our generated one
         hashed_password = make_password(validated_data['password'], salt=salt)
         
         # Delete any existing temporary signup with this email
@@ -90,12 +88,12 @@ class TutorProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     profile_picture_url = serializers.SerializerMethodField()
     bankqr_url = serializers.SerializerMethodField()
-    is_online = serializers.SerializerMethodField() 
-
+    is_online = serializers.SerializerMethodField()
     
     class Meta:
         model = TutorProfile
-        fields = '__all__'
+        fields = ['id', 'user', 'subject', 'semester', 'subjectcode', 'department', 'available', 
+                  'accountnumber', 'profile_picture_url', 'bankqr_url', 'is_online']
     
     def get_profile_picture_url(self, obj):
         if obj.profile_picture:
@@ -106,6 +104,7 @@ class TutorProfileSerializer(serializers.ModelSerializer):
         if obj.bankqr:
             return obj.bankqr.url
         return None
+    
     def get_is_online(self, obj):
         user = obj.user
         if not user.last_seen:
@@ -144,6 +143,7 @@ class UpdateProfileSerializer(serializers.Serializer):
     subject = serializers.CharField(required=False)  # For tutors
     semester = serializers.CharField(required=False)
     subject_code = serializers.CharField(required=False)  # For tutors
+    department = serializers.CharField(required=False)  # For tutors
     rate = serializers.CharField(required=False)  # For tutors
     subject_required = serializers.CharField(required=False)  # For tutees
 
@@ -165,4 +165,3 @@ class AvailabilitySerializer(serializers.ModelSerializer):
     
     def get_formatted_time(self, obj):
         return obj.formatted_time()
-    

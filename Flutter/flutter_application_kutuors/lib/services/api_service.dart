@@ -409,16 +409,34 @@ class ApiService {
     }
   }
 
-  // List all available tutors 
-  static Future<Map<String, dynamic>> listTutors() async {
+  // List all available tutors with filtering support
+  static Future<Map<String, dynamic>> listTutors({
+    String? search,
+    String? department,
+    String? subject,
+  }) async {
     try {
       final token = await getToken();
       if (token == null) {
         throw Exception('Not authenticated');
       }
 
+      // Build query parameters
+      final Map<String, String> queryParams = {};
+      if (search != null && search.isNotEmpty) {
+        queryParams['search'] = search;
+      }
+      if (department != null && department.isNotEmpty) {
+        queryParams['department'] = department;
+      }
+      if (subject != null && subject.isNotEmpty) {
+        queryParams['subject'] = subject;
+      }
+
+      final uri = Uri.parse('$baseUrl/list-tutors/').replace(queryParameters: queryParams);
+
       final response = await http.get(
-        Uri.parse('$baseUrl/list-tutors/'),
+        uri,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Token $token',
@@ -431,6 +449,103 @@ class ApiService {
       } else {
         final error = jsonDecode(response.body);
         throw Exception(error['error'] ?? 'Failed to load tutors');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Search tutors by subject
+  static Future<Map<String, dynamic>> searchTutorsBySubject(String query) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/search-tutors/?query=$query'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to search tutors');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Get list of departments
+  static Future<Map<String, dynamic>> listDepartments() async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/departments/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to load departments');
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        throw Exception('Cannot connect to server.');
+      }
+      rethrow;
+    }
+  }
+
+  // Get list of subjects (optionally filtered by department)
+  static Future<Map<String, dynamic>> listSubjects({String? department}) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        throw Exception('Not authenticated');
+      }
+
+      final uri = department != null && department.isNotEmpty
+          ? Uri.parse('$baseUrl/subjects/?department=$department')
+          : Uri.parse('$baseUrl/subjects/');
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? 'Failed to load subjects');
       }
     } catch (e) {
       if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {

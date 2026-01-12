@@ -24,10 +24,109 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   // Filter controllers
   final TextEditingController _searchController = TextEditingController();
   String? _selectedDepartment;
-  String? _selectedSubjectCode;
+  String? _selectedSubject;
   
   // API Base URL -match with backend
   static const String baseUrl = 'http://192.168.16.1:8000';
+
+  // Subject data for Computer Science
+  final Map<String, String> _computerScienceSubjects = {
+    'MATH 101': 'Calculus and Linear Algebra',
+    'PHYS 101': 'General Physics I',
+    'COMP 102': 'Computer Programming',
+    'ENGG 111': 'Elements of Engineering I',
+    'CHEM 101': 'General Chemistry',
+    'EDRG 101': 'Engineering Drawing I',
+    'MATH 104': 'Advanced Calculus',
+    'PHYS 102': 'General Physics II',
+    'COMP 116': 'Object-Oriented Programming',
+    'ENGG 112': 'Elements Of Engineering II',
+    'ENGT 105': 'Technical Communication',
+    'ENVE 101': 'Introduction to Environmental Engineering',
+    'EDRG 102': 'Engineering Drawing II',
+    'MATH 208': 'Statistics and Probability',
+    'MCSC 201': 'Discrete Mathematics/Structure',
+    'EEEG 202': 'Digital Logic',
+    'EEEG 211': 'Electronics Engineering I',
+    'COMP 202': 'Data Structures and Algorithms',
+    'MATH 207': 'Differential Equations and Complex Variables',
+    'MCSC 202': 'Numerical Methods',
+    'COMP 204': 'Communication and Networking',
+    'COMP 231': 'Microprocessor and Assembly Language',
+    'COMP 232': 'Database Management Systems',
+    'COMP 317': 'Computational Operations Research',
+    'MGTS 301': 'Engineering Economics',
+    'COMP 307': 'Operating Systems',
+    'COMP 315': 'Computer Architecture and Organization',
+    'COMP 316': 'Theory of Computation',
+    'COMP 342': 'Computer Graphics',
+    'COMP 343': 'Information System Ethics',
+    'COMP 302': 'System Analysis and Design',
+    'COMP 409': 'Compiler Design',
+    'COMP 314': 'Algorithms and Complexity',
+    'COMP 323': 'Graph Theory',
+    'COMP 341': 'Human Computer Interaction',
+    'MGTS 403': 'Engineering Management',
+    'COMP 401': 'Software Engineering',
+    'COMP 472': 'Artificial Intelligence',
+    'MGTS 402': 'Engineering Entrepreneurship',
+    'COMP 486': 'Software Dependability',
+  };
+  
+  // Subject data for Computer Engineering
+  final Map<String, String> _computerEngineeringSubjects = {
+    'MATH 101': 'Calculus and Linear Algebra',
+    'PHYS 101': 'General Physics I',
+    'COMP 102': 'Computer Programming',
+    'ENGG 111': 'Elements of Engineering I',
+    'CHEM 101': 'General Chemistry',
+    'EDRG 101': 'Engineering Drawing I',
+    'MATH 104': 'Advanced Calculus',
+    'PHYS 102': 'General Physics II',
+    'COMP 116': 'Object-Oriented Programming',
+    'ENGG 112': 'Elements Of Engineering II',
+    'ENGT 105': 'Technical Communication',
+    'ENVE 101': 'Introduction to Environmental Engineering',
+    'EDRG 102': 'Engineering Drawing II',
+    'MATH 208': 'Statistics and Probability',
+    'MCSC 201': 'Discrete Mathematics/Structure',
+    'EEEG 202': 'Digital Logic',
+    'EEEG 211': 'Electronics Engineering I',
+    'COMP 202': 'Data Structures and Algorithms',
+    'MATH 207': 'Differential Equations and Complex Variables',
+    'MCSC 202': 'Numerical Methods',
+    'COMP 204': 'Communication and Networking',
+    'COMP 231': 'Microprocessor and Assembly Language',
+    'COMP 232': 'Database Management Systems',
+    'MGTS 301': 'Engineering Economics',
+    'COMP 307': 'Operating Systems',
+    'COMP 315': 'Computer Architecture and Organization',
+    'COEG 304': 'Instrumentation and Control',
+    'COMP 310': 'Laboratory Work',
+    'COMP 301': 'Principles of Programming Languages',
+    'COMP 304': 'Operations Research',
+    'COMP 302': 'System Analysis and Design',
+    'COMP 342': 'Computer Graphics',
+    'COMP 314': 'Algorithms and Complexity',
+    'COMP 306': 'Embedded Systems',
+    'COMP 343': 'Information System Ethics',
+    'MGTS 403': 'Engineering Management',
+    'COMP 401': 'Software Engineering',
+    'COMP 472': 'Artificial Intelligence',
+    'COMP 409': 'Compiler Design',
+    'COMP 407': 'Digital Signal Processing',
+    'MGTS 402': 'Engineering Entrepreneurship',
+  };
+  
+  // Get available subjects based on selected department
+  Map<String, String> get _availableSubjects {
+    if (_selectedDepartment == 'Computer Science') {
+      return _computerScienceSubjects;
+    } else if (_selectedDepartment == 'Computer Engineering') {
+      return _computerEngineeringSubjects;
+    }
+    return {};
+  }
 
   @override
   void initState() {
@@ -102,11 +201,17 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
         final matchesDepartment = _selectedDepartment == null ||
             department == _selectedDepartment!.toLowerCase();
         
-        // Subject code filter
-        final matchesSubjectCode = _selectedSubjectCode == null ||
-            subjectCode == _selectedSubjectCode!.toLowerCase();
+        // Subject filter - matches either subject code or subject name
+        bool matchesSubject = _selectedSubject == null;
+        if (!matchesSubject && _selectedSubject != null) {
+          // Check if selected subject matches the tutor's subject code or subject name
+          matchesSubject = subjectCode == _selectedSubject!.toLowerCase() ||
+              subject.contains(_selectedSubject!.toLowerCase()) ||
+              (_availableSubjects[_selectedSubject] != null && 
+               subject.contains(_availableSubjects[_selectedSubject]!.toLowerCase()));
+        }
         
-        return matchesSearch && matchesDepartment && matchesSubjectCode;
+        return matchesSearch && matchesDepartment && matchesSubject;
       }).toList();
     });
   }
@@ -148,23 +253,23 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     }
   }
 
- void _onBottomNavTap(int index) {
-  if(index == 1){
-    Navigator.push(
-      context, 
-      MaterialPageRoute(
-        builder: (context) => const TuteeProfilePage(isPrivateView: true)
-      ),
-    );
+  void _onBottomNavTap(int index) {
+    if(index == 1){
+      Navigator.push(
+        context, 
+        MaterialPageRoute(
+          builder: (context) => const TuteeProfilePage(isPrivateView: true)
+        ),
+      );
+    }
+    else if (index == 2) {
+      _handlelogout();
+    }
+    else {
+      // Only update _selectedIndex for Home (index 0)
+      setState(() => _selectedIndex = index);
+    }
   }
-  else if (index == 2) {
-    _handlelogout();
-  }
-  else {
-    // Only update _selectedIndex for Home (index 0)
-    setState(() => _selectedIndex = index);
-  }
-}
 
   void _viewTutorProfile(Map<String, dynamic> tutor) {
     Navigator.push(
@@ -252,24 +357,22 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                               ),
                               items: const [
                                 DropdownMenuItem<String>(
+                                  value: null,
                                   child: Text('All Departments'),
                                 ),
                                 DropdownMenuItem(
-                                  value: 'CS',
-                                  child: Text('CS'),
+                                  value: 'Computer Engineering',
+                                  child: Text('Computer Engineering'),
                                 ),
                                 DropdownMenuItem(
-                                  value: 'Math',
-                                  child: Text('Math'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'Physics',
-                                  child: Text('Physics'),
+                                  value: 'Computer Science',
+                                  child: Text('Computer Science'),
                                 ),
                               ],
                               onChanged: (value) {
                                 setState(() {
                                   _selectedDepartment = value;
+                                  _selectedSubject = null; // Reset subject when department changes
                                   _applyFilters();
                                 });
                               },
@@ -278,36 +381,36 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: _selectedSubjectCode,
+                              initialValue: _selectedSubject,
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.white,
-                                hintText: 'Subject Code',
+                                hintText: 'Subject',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
                                 ),
                               ),
-                              items: const [
-                                DropdownMenuItem(
+                              items: [
+                                const DropdownMenuItem(
                                   value: null,
-                                  child: Text('All Codes'),
+                                  child: Text('All Subjects'),
                                 ),
-                                DropdownMenuItem(
-                                  value: '101',
-                                  child: Text('101'),
-                                ),
-                                DropdownMenuItem(
-                                  value: '102',
-                                  child: Text('102'),
-                                ),
+                                ..._availableSubjects.entries.map((entry) {
+                                  return DropdownMenuItem(
+                                    value: entry.key,
+                                    child: Text('${entry.key} - ${entry.value}'),
+                                  );
+                                }),
                               ],
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedSubjectCode = value;
-                                  _applyFilters();
-                                });
-                              },
+                              onChanged: _selectedDepartment == null
+                                  ? null // Disable if no department selected
+                                  : (value) {
+                                      setState(() {
+                                        _selectedSubject = value;
+                                        _applyFilters();
+                                      });
+                                    },
                             ),
                           ),
                         ],
