@@ -23,7 +23,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   final TextEditingController _kuEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
-  final TextEditingController _semesterController = TextEditingController();
+  final TextEditingController _departmentController = TextEditingController();
   final TextEditingController _subjectCodeController = TextEditingController();
   final TextEditingController _rateController = TextEditingController();
 
@@ -64,7 +64,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _kuEmailController.text = data['email'] ?? '';
           _phoneController.text = data['phone_number'] ?? '';
           _subjectController.text = data['subject'] ?? '';
-          _semesterController.text = data['semester'] ?? '';
+          _departmentController.text = data['department'] ?? '';
           _subjectCodeController.text = data['subject_code'] ?? '';
           _rateController.text = data['rate'] ?? '';
           
@@ -407,7 +407,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           'name': _nameController.text,
           'phone_number': _phoneController.text,
           'subject': _subjectController.text,
-          'semester': _semesterController.text,
+          'department': _departmentController.text,
           'subject_code': _subjectCodeController.text,
           'rate': _rateController.text,
         }),
@@ -525,7 +525,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                     const SizedBox(height: 12),
                     _buildEditableField("Subject", _subjectController),
                     const SizedBox(height: 12),
-                    _buildEditableField("Semester", _semesterController),
+                    _buildEditableField("Department", _departmentController),
                     const SizedBox(height: 12),
                     _buildEditableField("Subject Code", _subjectCodeController),
                     const SizedBox(height: 12),
@@ -717,7 +717,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     _kuEmailController.dispose();
     _phoneController.dispose();
     _subjectController.dispose();
-    _semesterController.dispose();
+    _departmentController.dispose();
     _subjectCodeController.dispose();
     _rateController.dispose();
     super.dispose();
