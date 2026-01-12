@@ -21,7 +21,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _kuEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _semesterController = TextEditingController();
+  final TextEditingController _departmentController = TextEditingController();
   final TextEditingController _subjectRequiredController = TextEditingController();
 
   // API Base URL - Update this to match your backend
@@ -59,7 +59,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
           _nameController.text = data['name'] ?? '';
           _kuEmailController.text = data['email'] ?? '';
           _phoneController.text = data['phone_number'] ?? '';
-          _semesterController.text = data['semester'] ?? '';
+          _departmentController.text = data['department'] ?? '';
           _subjectRequiredController.text = data['subject_required'] ?? '';
           _isLoading = false;
         });
@@ -155,7 +155,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         body: json.encode({
           'name': _nameController.text,
           'phone_number': _phoneController.text,
-          'semester': _semesterController.text,
+          'department': _departmentController.text,
           'subject_required': _subjectRequiredController.text,
         }),
       );
@@ -351,7 +351,7 @@ return Scaffold(
                       const SizedBox(height: 12),
                       _buildEditableField('Phone no', _phoneController),
                       const SizedBox(height: 12),
-                      _buildEditableField('Semester', _semesterController),
+                      _buildEditableField('Department', _departmentController),
                       const SizedBox(height: 12),
                       _buildEditableField('Subject Required', _subjectRequiredController),
                       const SizedBox(height: 32),
@@ -471,7 +471,7 @@ return Scaffold(
     _nameController.dispose();
     _kuEmailController.dispose();
     _phoneController.dispose();
-    _semesterController.dispose();
+    _departmentController.dispose();
     _subjectRequiredController.dispose();
     super.dispose();
   }
