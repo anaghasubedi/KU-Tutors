@@ -1,4 +1,5 @@
 from rest_framework import status
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -578,3 +579,21 @@ def delete_availability(request, availability_id):
                        status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def set_online_status(request):
+    user = request.user
+    is_online = request.data.get('is_online')
+
+    if is_online is None:
+        return Response({"error": "is_online required"}, status=400)
+
+    user.is_online = is_online
+    user.last_seen = timezone.now()
+    user.save()
+
+    return Response({
+        "message": "Status updated",
+        "is_online": user.is_online
+    })
