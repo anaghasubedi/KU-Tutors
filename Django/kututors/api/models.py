@@ -118,3 +118,18 @@ class Availability(models.Model):
     def day_name(self):
         """Returns day name like 'Monday'"""
         return self.date.strftime('%A')
+    
+class User(AbstractUser):
+    role = models.CharField(max_length=20)
+    is_online = models.BooleanField(default=False)  
+    last_seen = models.DateTimeField(null=True, blank=True)
+
+class UpdateLastSeenMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user.is_authenticated:
+            request.user.last_seen = timezone.now()
+            request.user.save(update_fields=['last_seen'])
+        return self.get_response(request)

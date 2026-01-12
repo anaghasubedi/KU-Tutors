@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from .models import TutorProfile, TuteeProfile, Session, TemporarySignup, Availability
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
+from datetime import timedelta, timezone
 from .models import AvailabilitySlot
 import random
 import secrets
@@ -89,6 +90,8 @@ class TutorProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     profile_picture_url = serializers.SerializerMethodField()
     bankqr_url = serializers.SerializerMethodField()
+    is_online = serializers.SerializerMethodField() 
+
     
     class Meta:
         model = TutorProfile
@@ -103,6 +106,12 @@ class TutorProfileSerializer(serializers.ModelSerializer):
         if obj.bankqr:
             return obj.bankqr.url
         return None
+    def get_is_online(self, obj):
+        user = obj.user
+        if not user.last_seen:
+            return False
+        # if user was seen in the last 5 mins → online
+        return timezone.now() - user.last_seen <= timedelta(minutes=5)
 
 class TuteeProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -156,3 +165,4 @@ class AvailabilitySerializer(serializers.ModelSerializer):
     
     def get_formatted_time(self, obj):
         return obj.formatted_time()
+    
