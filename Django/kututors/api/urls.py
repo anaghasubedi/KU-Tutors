@@ -23,6 +23,7 @@ urlpatterns = [
     # Tutor Browsing
     path('list-tutors/', views.list_tutors, name='list_tutors'),
     path('search-tutors/', views.search_tutors_by_subject, name='search_tutors'),
+    path('tutor/<int:tutor_id>/', views.get_tutor_profile, name='get_tutor_profile'),
     
     # Subject Management
     path('departments/', views.list_departments, name='list_departments'),

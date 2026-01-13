@@ -7,8 +7,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class TutorProfilePage extends StatefulWidget {
   final bool isOwner;
+  final int? tutorId;
 
-  const TutorProfilePage({super.key, this.isOwner = true});
+  const TutorProfilePage({
+    super.key, 
+    this.isOwner = true,
+    this.tutorId,
+  });
 
   @override
   State<TutorProfilePage> createState() => _TutorProfilePageState();
@@ -39,27 +44,42 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     _loadAvailability();
   }
 
-  Future<void> _loadUserProfile() async {
-    setState(() => _isLoading = true);
-    
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString('auth_token');
+Future<void> _loadUserProfile() async {
+  setState(() => _isLoading = true);
+  
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString('auth_token');
 
-      if (_token == null) throw Exception('No authentication token found');
+    if (_token == null) throw Exception('No authentication token found');
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/update-profile/'),
-        headers: {
-          'Authorization': 'Token $_token',
-          'Content-Type': 'application/json',
-        },
-      );
+    // Determine which endpoint to use
+    String endpoint;
+    if (widget.isOwner) {
+      // Load own profile
+      endpoint = '$baseUrl/api/update-profile/';
+    } else if (widget.tutorId != null) {
+      // Load specific tutor's public profile
+      endpoint = '$baseUrl/api/tutor/${widget.tutorId}/';
+    } else {
+      throw Exception('No tutor ID provided for public view');
+    }
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        setState(() {
+    final response = await http.get(
+      Uri.parse(endpoint),
+      headers: {
+        'Authorization': 'Token $_token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      
+      setState(() {
+        // Handle different response structures
+        if (widget.isOwner) {
+          // Own profile response from update-profile endpoint
           _nameController.text = data['name'] ?? '';
           _kuEmailController.text = data['email'] ?? '';
           _phoneController.text = data['phone_number'] ?? '';
@@ -67,50 +87,70 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _departmentController.text = data['department'] ?? '';
           _subjectCodeController.text = data['subject_code'] ?? '';
           _rateController.text = data['rate'] ?? '';
-          
-          if (data['subject'] != null && data['subject'].isNotEmpty) {
-            _subjects = data['subject'].split(',').map((s) => s.trim()).toList();
-          }
-          
-          _isLoading = false;
-        });
-      } else {
-        throw Exception('Failed to load profile');
-      }
-    } catch (e) {
-      debugPrint('Error loading profile: $e');
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load profile: $e')),
-        );
-      }
+        } else {
+          // Public tutor profile response from tutor/:id endpoint
+          final user = data['user'];
+          _nameController.text = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+          _kuEmailController.text = user['email'] ?? '';
+          _phoneController.text = user['contact'] ?? '';
+          _subjectController.text = data['subject'] ?? '';
+          _departmentController.text = data['department'] ?? '';
+          _subjectCodeController.text = data['subjectcode'] ?? '';
+          _rateController.text = data['accountnumber'] ?? '';
+        }
+        
+        if (_subjectController.text.isNotEmpty) {
+          _subjects = _subjectController.text.split(',').map((s) => s.trim()).toList();
+        }
+        
+        _isLoading = false;
+      });
+    } else {
+      throw Exception('Failed to load profile');
     }
-  }
-
-  Future<void> _loadAvailability() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/tutor/availability/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
+  } catch (e) {
+    debugPrint('Error loading profile: $e');
+    setState(() => _isLoading = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load profile: $e')),
       );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _availability = List<Map<String, dynamic>>.from(data['availabilities']);
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading availability: $e');
     }
   }
+}
+
+Future<void> _loadAvailability() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    String endpoint;
+    if (widget.isOwner) {
+      endpoint = '$baseUrl/api/availability/';
+    } else if (widget.tutorId != null) {
+      endpoint = '$baseUrl/api/tutor/${widget.tutorId}/availability/';
+    } else {
+      return;
+    }
+
+    final response = await http.get(
+      Uri.parse(endpoint),
+      headers: {
+        'Authorization': 'Token $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      setState(() {
+        _availability = List<Map<String, dynamic>>.from(data['slots'] ?? []);
+      });
+    }
+  } catch (e) {
+    debugPrint('Error loading availability: $e');
+  }
+}
 
   Future<void> _showAddAvailabilityDialog() async {
     DateTime? selectedDate;

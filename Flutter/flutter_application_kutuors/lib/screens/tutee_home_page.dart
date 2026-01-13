@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'tutee_profile.dart';
 import 'tutor_profile.dart';
+import 'browse_tutors.dart';
 import 'login.dart';
 
 class TuteeHomePage extends StatefulWidget {
@@ -19,7 +20,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   List<Map<String, dynamic>> _tutors = [];
   List<Map<String, dynamic>> _filteredTutors = [];
   bool _isLoadingTutors = true;
-  bool _showAllTutors = false;
+  final bool _showAllTutors = false;
   
   // Filter controllers
   final TextEditingController _searchController = TextEditingController();
@@ -271,14 +272,25 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     }
   }
 
-  void _viewTutorProfile(Map<String, dynamic> tutor) {
+void _viewTutorProfile(Map<String, dynamic> tutor) {
+  final tutorId = tutor['id']; // Get tutor profile ID
+  
+  if (tutorId != null) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const TutorProfilePage(isOwner: false),
+        builder: (context) => TutorProfilePage(
+          isOwner: false,
+          tutorId: tutorId, // Pass the tutor ID
+        ),
       ),
     );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Unable to load tutor profile')),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -391,6 +403,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                                   borderSide: BorderSide.none,
                                 ),
                               ),
+                              menuMaxHeight: 300,
                               items: [
                                 const DropdownMenuItem(
                                   value: null,
@@ -428,24 +441,27 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                               fontSize: 16,
                             ),
                           ),
-                          if (_filteredTutors.length > 5)
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _showAllTutors = !_showAllTutors;
-                                });
-                              },
-                              child: Text(
-                                _showAllTutors ? 'Show Less' : 'Show More',
-                                style: const TextStyle(
+                      if (_filteredTutors.length > 5)
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const BrowseTutorsPage(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                             'Show More',
+                                style: TextStyle(
                                   color: Color(0xFF305E9D),
                                   fontWeight: FontWeight.bold,
                                 ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
+                               ),
+                             ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
                       
                       // Loading state
                       if (_isLoadingTutors)
