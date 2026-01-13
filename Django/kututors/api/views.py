@@ -483,6 +483,29 @@ def list_departments(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def get_tutor_profile(request, tutor_id):
+    """
+    Get detailed profile of a specific tutor by ID
+    """
+    try:
+        tutor = TutorProfile.objects.select_related('user').get(id=tutor_id)
+        serializer = TutorProfileSerializer(tutor)
+        
+        return Response({
+            'tutor': serializer.data
+        }, status=status.HTTP_200_OK)
+        
+    except TutorProfile.DoesNotExist:
+        return Response({
+            'error': 'Tutor not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def list_subjects(request):
     """
     Get list of subjects by department
@@ -911,3 +934,4 @@ def add_tutee_subjects(request):
         }, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
