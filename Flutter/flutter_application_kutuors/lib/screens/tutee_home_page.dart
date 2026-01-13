@@ -19,7 +19,11 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _tutors = [];
   List<Map<String, dynamic>> _filteredTutors = [];
+  List<Map<String, dynamic>> _demoSessions = [];
+  List<Map<String, dynamic>> _bookedClasses = [];
   bool _isLoadingTutors = true;
+  bool _isLoadingDemoSessions = true;
+  bool _isLoadingBookedClasses = true;
   final bool _showAllTutors = false;
   
   // Filter controllers
@@ -133,6 +137,8 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   void initState() {
     super.initState();
     _loadTutors();
+    _loadDemoSessions();
+    _loadBookedClasses();
     _searchController.addListener(_applyFilters);
   }
 
@@ -173,6 +179,154 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load tutors: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadDemoSessions() async {
+    setState(() => _isLoadingDemoSessions = true);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/demo-sessions/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _demoSessions = List<Map<String, dynamic>>.from(data['demo_sessions'] ?? []);
+          _isLoadingDemoSessions = false;
+        });
+      } else {
+        throw Exception('Failed to load demo sessions');
+      }
+    } catch (e) {
+      debugPrint('Error loading demo sessions: $e');
+      setState(() => _isLoadingDemoSessions = false);
+    }
+  }
+
+  Future<void> _loadBookedClasses() async {
+    setState(() => _isLoadingBookedClasses = true);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/booked-classes/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _bookedClasses = List<Map<String, dynamic>>.from(data['booked_classes'] ?? []);
+          _isLoadingBookedClasses = false;
+        });
+      } else {
+        throw Exception('Failed to load booked classes');
+      }
+    } catch (e) {
+      debugPrint('Error loading booked classes: $e');
+      setState(() => _isLoadingBookedClasses = false);
+    }
+  }
+
+  Future<void> _bookDemoSession(Map<String, dynamic> session) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/book-demo-session/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'session_id': session['id']}),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Demo session booked successfully!')),
+          );
+          _loadDemoSessions();
+          _loadBookedClasses();
+        }
+      } else {
+        throw Exception('Failed to book demo session');
+      }
+    } catch (e) {
+      debugPrint('Error booking demo session: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to book session: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelBooking(Map<String, dynamic> booking) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Booking'),
+        content: const Text('Are you sure you want to cancel this booking?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/api/cancel-booking/${booking['id']}/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Booking cancelled successfully')),
+          );
+          _loadBookedClasses();
+        }
+      } else {
+        throw Exception('Failed to cancel booking');
+      }
+    } catch (e) {
+      debugPrint('Error cancelling booking: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to cancel booking: $e')),
         );
       }
     }
@@ -518,22 +672,36 @@ void _viewTutorProfile(Map<String, dynamic> tutor) {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Column(
-                        children: const [
-                          SessionRow(
-                            tutor: 'Amit Sharma',
-                            subject: 'Physics',
-                            time: 'Mon 2 PM',
-                            actionText: 'Book Class',
+                      if (_isLoadingDemoSessions)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: CircularProgressIndicator(),
                           ),
-                          SessionRow(
-                            tutor: 'Sita Koirala',
-                            subject: 'Math',
-                            time: 'Wed 1 PM',
-                            actionText: 'Book Class',
+                        )
+                      else if (_demoSessions.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: Text('No demo sessions available'),
                           ),
-                        ],
-                      ),
+                        )
+                      else
+                        Column(
+                          children: _demoSessions.map((session) {
+                            final tutorName = session['tutor_name'] ?? 'Unknown';
+                            final subject = session['subject'] ?? 'Not Specified';
+                            final time = session['time'] ?? 'TBD';
+                            
+                            return SessionRow(
+                              tutor: tutorName,
+                              subject: subject,
+                              time: time,
+                              actionText: 'Book Class',
+                              onAction: () => _bookDemoSession(session),
+                            );
+                          }).toList(),
+                        ),
                       const SizedBox(height: 20),
 
                       // ---------------- Classes Booked ----------------
@@ -545,22 +713,37 @@ void _viewTutorProfile(Map<String, dynamic> tutor) {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Column(
-                        children: const [
-                          SessionRow(
-                            tutor: 'Amit Sharma',
-                            subject: 'Physics',
-                            time: 'Tue 3 PM',
-                            actionText: 'Booked ✅',
+                      if (_isLoadingBookedClasses)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: CircularProgressIndicator(),
                           ),
-                          SessionRow(
-                            tutor: 'Sita Koirala',
-                            subject: 'Math',
-                            time: 'Thu 4 PM',
-                            actionText: 'Booked ✅',
+                        )
+                      else if (_bookedClasses.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: Text('No classes booked yet'),
                           ),
-                        ],
-                      ),
+                        )
+                      else
+                        Column(
+                          children: _bookedClasses.map((booking) {
+                            final tutorName = booking['tutor_name'] ?? 'Unknown';
+                            final subject = booking['subject'] ?? 'Not Specified';
+                            final time = booking['time'] ?? 'TBD';
+                            
+                            return SessionRow(
+                              tutor: tutorName,
+                              subject: subject,
+                              time: time,
+                              actionText: 'Cancel',
+                              onAction: () => _cancelBooking(booking),
+                              isBooked: true,
+                            );
+                          }).toList(),
+                        ),
 
                       const Spacer(), // fills remaining space to avoid overflow
                     ],
@@ -658,6 +841,8 @@ class SessionRow extends StatelessWidget {
   final String subject;
   final String time;
   final String actionText;
+  final VoidCallback onAction;
+  final bool isBooked;
 
   const SessionRow({
     super.key,
@@ -665,6 +850,8 @@ class SessionRow extends StatelessWidget {
     required this.subject,
     required this.time,
     required this.actionText,
+    required this.onAction,
+    this.isBooked = false,
   });
 
   @override
@@ -708,9 +895,9 @@ class SessionRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: onAction,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF305E9D),
+                    backgroundColor: isBooked ? Colors.red : const Color(0xFF305E9D),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     minimumSize: const Size(80, 25),
                   ),
