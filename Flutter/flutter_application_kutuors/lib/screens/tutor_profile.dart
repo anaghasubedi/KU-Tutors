@@ -9,11 +9,7 @@ class TutorProfilePage extends StatefulWidget {
   final bool isOwner;
   final int? tutorId;
 
-  const TutorProfilePage({
-    super.key, 
-    this.isOwner = true,
-    this.tutorId,
-  });
+  const TutorProfilePage({super.key, this.isOwner = true, this.tutorId});
 
   @override
   State<TutorProfilePage> createState() => _TutorProfilePageState();
@@ -31,6 +27,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   final TextEditingController _departmentController = TextEditingController();
   final TextEditingController _subjectCodeController = TextEditingController();
   final TextEditingController _rateController = TextEditingController();
+  final TextEditingController _accountNumberController = TextEditingController();
 
   List<String> _subjects = [];
   List<Map<String, dynamic>> _availability = [];
@@ -44,113 +41,119 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     _loadAvailability();
   }
 
-Future<void> _loadUserProfile() async {
-  setState(() => _isLoading = true);
-  
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('auth_token');
+  Future<void> _loadUserProfile() async {
+    setState(() => _isLoading = true);
 
-    if (_token == null) throw Exception('No authentication token found');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _token = prefs.getString('auth_token');
 
-    // Determine which endpoint to use
-    String endpoint;
-    if (widget.isOwner) {
-      // Load own profile
-      endpoint = '$baseUrl/api/update-profile/';
-    } else if (widget.tutorId != null) {
-      // Load specific tutor's public profile
-      endpoint = '$baseUrl/api/tutor/${widget.tutorId}/';
-    } else {
-      throw Exception('No tutor ID provided for public view');
-    }
+      if (_token == null) throw Exception('No authentication token found');
 
-    final response = await http.get(
-      Uri.parse(endpoint),
-      headers: {
-        'Authorization': 'Token $_token',
-        'Content-Type': 'application/json',
-      },
-    );
+      // Determine which endpoint to use
+      String endpoint;
+      if (widget.isOwner) {
+        // Load own profile
+        endpoint = '$baseUrl/api/update-profile/';
+      } else if (widget.tutorId != null) {
+        // Load specific tutor's public profile
+        endpoint = '$baseUrl/api/tutor/${widget.tutorId}/';
+      } else {
+        throw Exception('No tutor ID provided for public view');
+      }
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      
-      setState(() {
-        // Handle different response structures
-        if (widget.isOwner) {
-          // Own profile response from update-profile endpoint
-          _nameController.text = data['name'] ?? '';
-          _kuEmailController.text = data['email'] ?? '';
-          _phoneController.text = data['phone_number'] ?? '';
-          _subjectController.text = data['subject'] ?? '';
-          _departmentController.text = data['department'] ?? '';
-          _subjectCodeController.text = data['subject_code'] ?? '';
-          _rateController.text = data['rate'] ?? '';
-        } else {
-          // Public tutor profile response from tutor/:id endpoint
-          final user = data['user'];
-          _nameController.text = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
-          _kuEmailController.text = user['email'] ?? '';
-          _phoneController.text = user['contact'] ?? '';
-          _subjectController.text = data['subject'] ?? '';
-          _departmentController.text = data['department'] ?? '';
-          _subjectCodeController.text = data['subjectcode'] ?? '';
-          _rateController.text = data['accountnumber'] ?? '';
-        }
-        
-        if (_subjectController.text.isNotEmpty) {
-          _subjects = _subjectController.text.split(',').map((s) => s.trim()).toList();
-        }
-        
-        _isLoading = false;
-      });
-    } else {
-      throw Exception('Failed to load profile');
-    }
-  } catch (e) {
-    debugPrint('Error loading profile: $e');
-    setState(() => _isLoading = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load profile: $e')),
+      final response = await http.get(
+        Uri.parse(endpoint),
+        headers: {
+          'Authorization': 'Token $_token',
+          'Content-Type': 'application/json',
+        },
       );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        setState(() {
+          // Handle different response structures
+          if (widget.isOwner) {
+            // Own profile response from update-profile endpoint
+            _nameController.text = data['name'] ?? '';
+            _kuEmailController.text = data['email'] ?? '';
+            _phoneController.text = data['phone_number'] ?? '';
+            _subjectController.text = data['subject'] ?? '';
+            _departmentController.text = data['department'] ?? '';
+            _subjectCodeController.text = data['subject_code'] ?? '';
+            _rateController.text = data['rate'] ?? '';
+            _accountNumberController.text = data['account_number'] ?? '';
+          } else {
+            // Public tutor profile response from tutor/:id endpoint
+            final user = data['user'];
+            _nameController.text =
+                '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+            _kuEmailController.text = user['email'] ?? '';
+            _phoneController.text = user['contact'] ?? '';
+            _subjectController.text = data['subject'] ?? '';
+            _departmentController.text = data['department'] ?? '';
+            _subjectCodeController.text = data['subjectcode'] ?? '';
+            _rateController.text = data['rate'] ?? '';
+            _accountNumberController.text = data['account_number'] ?? '';
+          }
+
+          if (_subjectController.text.isNotEmpty) {
+            _subjects = _subjectController.text
+                .split(',')
+                .map((s) => s.trim())
+                .toList();
+          }
+
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load profile');
+      }
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
+      }
     }
   }
-}
 
-Future<void> _loadAvailability() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+  Future<void> _loadAvailability() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
 
-    String endpoint;
-    if (widget.isOwner) {
-      endpoint = '$baseUrl/api/availability/';
-    } else if (widget.tutorId != null) {
-      endpoint = '$baseUrl/api/tutor/${widget.tutorId}/availability/';
-    } else {
-      return;
+      String endpoint;
+      if (widget.isOwner) {
+        endpoint = '$baseUrl/api/availability/';
+      } else if (widget.tutorId != null) {
+        endpoint = '$baseUrl/api/tutor/${widget.tutorId}/availability/';
+      } else {
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse(endpoint),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _availability = List<Map<String, dynamic>>.from(data['slots'] ?? []);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading availability: $e');
     }
-
-    final response = await http.get(
-      Uri.parse(endpoint),
-      headers: {
-        'Authorization': 'Token $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      setState(() {
-        _availability = List<Map<String, dynamic>>.from(data['slots'] ?? []);
-      });
-    }
-  } catch (e) {
-    debugPrint('Error loading availability: $e');
   }
-}
 
   Future<void> _showAddAvailabilityDialog() async {
     DateTime? selectedDate;
@@ -167,9 +170,11 @@ Future<void> _loadAvailability() async {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
-                  title: Text(selectedDate == null 
-                    ? 'Select Date' 
-                    : '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'),
+                  title: Text(
+                    selectedDate == null
+                        ? 'Select Date'
+                        : '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}',
+                  ),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
                     final date = await showDatePicker(
@@ -183,7 +188,11 @@ Future<void> _loadAvailability() async {
                 ),
                 const SizedBox(height: 16),
                 ListTile(
-                  title: Text(startTime == null ? 'Select Start Time' : 'Start: ${startTime!.format(context)}'),
+                  title: Text(
+                    startTime == null
+                        ? 'Select Start Time'
+                        : 'Start: ${startTime!.format(context)}',
+                  ),
                   trailing: const Icon(Icons.access_time),
                   onTap: () async {
                     final time = await showTimePicker(
@@ -194,7 +203,11 @@ Future<void> _loadAvailability() async {
                   },
                 ),
                 ListTile(
-                  title: Text(endTime == null ? 'Select End Time' : 'End: ${endTime!.format(context)}'),
+                  title: Text(
+                    endTime == null
+                        ? 'Select End Time'
+                        : 'End: ${endTime!.format(context)}',
+                  ),
                   trailing: const Icon(Icons.access_time),
                   onTap: () async {
                     final time = await showTimePicker(
@@ -214,7 +227,9 @@ Future<void> _loadAvailability() async {
             ),
             TextButton(
               onPressed: () async {
-                if (selectedDate != null && startTime != null && endTime != null) {
+                if (selectedDate != null &&
+                    startTime != null &&
+                    endTime != null) {
                   Navigator.pop(context);
                   await _addAvailability(selectedDate!, startTime!, endTime!);
                 }
@@ -227,7 +242,11 @@ Future<void> _loadAvailability() async {
     );
   }
 
-  Future<void> _addAvailability(DateTime date, TimeOfDay startTime, TimeOfDay endTime) async {
+  Future<void> _addAvailability(
+    DateTime date,
+    TimeOfDay startTime,
+    TimeOfDay endTime,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
@@ -239,9 +258,12 @@ Future<void> _loadAvailability() async {
           'Content-Type': 'application/json',
         },
         body: json.encode({
-          'date': '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
-          'start_time': '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}',
-          'end_time': '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
+          'date':
+              '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+          'start_time':
+              '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}',
+          'end_time':
+              '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
         }),
       );
 
@@ -282,9 +304,9 @@ Future<void> _loadAvailability() async {
       if (response.statusCode == 200) {
         await _loadAvailability();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Availability deleted')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Availability deleted')));
         }
       }
     } catch (e) {
@@ -316,22 +338,23 @@ Future<void> _loadAvailability() async {
 
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile =
-          await ImagePicker().pickImage(source: ImageSource.gallery);
+      final XFile? pickedFile = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+      );
       if (pickedFile != null) {
         final bytes = await pickedFile.readAsBytes();
         setState(() {
           _imageBytes = bytes;
         });
-        
+
         await _uploadImage(pickedFile);
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload image')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to upload image')));
       }
     }
   }
@@ -345,15 +368,14 @@ Future<void> _loadAvailability() async {
         'POST',
         Uri.parse('$baseUrl/api/upload-image/'),
       );
-      
+
       request.headers['Authorization'] = 'Token $token';
-      request.files.add(await http.MultipartFile.fromPath(
-        'image',
-        imageFile.path,
-      ));
+      request.files.add(
+        await http.MultipartFile.fromPath('image', imageFile.path),
+      );
 
       final response = await request.send();
-      
+
       if (response.statusCode == 200) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -366,9 +388,9 @@ Future<void> _loadAvailability() async {
     } catch (e) {
       debugPrint('Error uploading image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to upload image: $e')));
       }
     }
   }
@@ -411,12 +433,12 @@ Future<void> _loadAvailability() async {
 
       if (response.statusCode == 200) {
         await prefs.clear();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Account deleted successfully')),
           );
-          
+
           Navigator.pushReplacementNamed(context, '/login');
         }
       } else {
@@ -425,9 +447,9 @@ Future<void> _loadAvailability() async {
     } catch (e) {
       debugPrint('Error deleting account: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete account: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete account: $e')));
       }
     }
   }
@@ -450,6 +472,7 @@ Future<void> _loadAvailability() async {
           'department': _departmentController.text,
           'subject_code': _subjectCodeController.text,
           'rate': _rateController.text,
+          'account_number': _accountNumberController.text,
         }),
       );
 
@@ -467,9 +490,9 @@ Future<void> _loadAvailability() async {
     } catch (e) {
       debugPrint('Error saving profile: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save profile: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save profile: $e')));
       }
     }
   }
@@ -491,7 +514,11 @@ Future<void> _loadAvailability() async {
         automaticallyImplyLeading: false,
         title: Text(
           widget.isOwner ? "My Profile" : "Tutor Profile",
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
         centerTitle: true,
       ),
@@ -530,7 +557,9 @@ Future<void> _loadAvailability() async {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    widget.isOwner ? Icons.add_a_photo : Icons.person,
+                                    widget.isOwner
+                                        ? Icons.add_a_photo
+                                        : Icons.person,
                                     size: 40,
                                     color: Colors.grey,
                                   ),
@@ -538,28 +567,39 @@ Future<void> _loadAvailability() async {
                                   if (widget.isOwner)
                                     const Text(
                                       'Add Photo',
-                                      style: TextStyle(fontSize: 10, color: Colors.grey),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey,
+                                      ),
                                     ),
                                 ],
                               )
                             : widget.isOwner
-                                ? Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.black.withValues(alpha: 0.3),
-                                    ),
-                                    child: const Center(
-                                      child: Icon(Icons.edit, color: Colors.white, size: 30),
-                                    ),
-                                  )
-                                : null,
+                            ? Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                ),
+                              )
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 16),
 
                     _buildEditableField("Name", _nameController),
                     const SizedBox(height: 12),
-                    _buildEditableField("KU Email", _kuEmailController, enabled: false),
+                    _buildEditableField(
+                      "KU Email",
+                      _kuEmailController,
+                      enabled: false,
+                    ),
                     const SizedBox(height: 12),
                     _buildEditableField("Phone No", _phoneController),
                     const SizedBox(height: 12),
@@ -571,6 +611,11 @@ Future<void> _loadAvailability() async {
                     const SizedBox(height: 12),
                     _buildEditableField("Rate", _rateController),
                     const SizedBox(height: 24),
+                    _buildEditableField(
+                      "Account Number",
+                      _accountNumberController,
+                    ),
+                    const SizedBox(height: 12),
 
                     if (widget.isOwner)
                       SizedBox(
@@ -585,7 +630,10 @@ Future<void> _loadAvailability() async {
                               borderRadius: BorderRadius.circular(24),
                             ),
                           ),
-                          child: const Text("Save Profile", style: TextStyle(fontSize: 16)),
+                          child: const Text(
+                            "Save Profile",
+                            style: TextStyle(fontSize: 16),
+                          ),
                         ),
                       ),
                   ],
@@ -598,16 +646,29 @@ Future<void> _loadAvailability() async {
               if (_subjects.isNotEmpty) ...[
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: Text("Subjects", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                  child: Text(
+                    "Subjects",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
-                  children: _subjects.map((sub) => Chip(
-                    label: Text(sub),
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  )).toList(),
+                  children: _subjects
+                      .map(
+                        (sub) => Chip(
+                          label: Text(sub),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
                 const SizedBox(height: 20),
               ],
@@ -616,7 +677,14 @@ Future<void> _loadAvailability() async {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Availability", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                  const Text(
+                    "Availability",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
                   if (widget.isOwner)
                     ElevatedButton.icon(
                       onPressed: _showAddAvailabilityDialog,
@@ -625,26 +693,33 @@ Future<void> _loadAvailability() async {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: const Color(0xFF4A7AB8),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                 ],
               ),
               const SizedBox(height: 8),
-              
+
               _availability.isEmpty
                   ? const Card(
                       child: Padding(
                         padding: EdgeInsets.all(16.0),
-                        child: Text('No availability slots added yet', textAlign: TextAlign.center),
+                        child: Text(
+                          'No availability slots added yet',
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     )
                   : Column(
                       children: _availability.map((slot) {
                         final isAvailable = slot['status'] == 'Available';
                         final dayName = slot['day_name'] ?? '';
-                        final formattedDate = slot['formatted_date'] ?? slot['date'];
-                        
+                        final formattedDate =
+                            slot['formatted_date'] ?? slot['date'];
+
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           child: ListTile(
@@ -657,37 +732,68 @@ Future<void> _loadAvailability() async {
                                       DropdownButton<String>(
                                         value: slot['status'],
                                         items: const [
-                                          DropdownMenuItem(value: 'Available', child: Text('Available')),
-                                          DropdownMenuItem(value: 'Booked', child: Text('Booked')),
-                                          DropdownMenuItem(value: 'Unavailable', child: Text('Unavailable')),
+                                          DropdownMenuItem(
+                                            value: 'Available',
+                                            child: Text('Available'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'Booked',
+                                            child: Text('Booked'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'Unavailable',
+                                            child: Text('Unavailable'),
+                                          ),
                                         ],
                                         onChanged: (value) {
                                           if (value != null) {
-                                            _updateAvailabilityStatus(slot['id'], value);
+                                            _updateAvailabilityStatus(
+                                              slot['id'],
+                                              value,
+                                            );
                                           }
                                         },
                                         underline: Container(),
                                       ),
                                       IconButton(
-                                        icon: const Icon(Icons.delete, color: Colors.red),
-                                        onPressed: () => _deleteAvailability(slot['id']),
+                                        icon: const Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed: () =>
+                                            _deleteAvailability(slot['id']),
                                       ),
                                     ],
                                   )
                                 : isAvailable
-                                    ? ElevatedButton(
-                                        onPressed: () {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(content: Text("Booked demo on ${slot['day']}")),
-                                          );
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF4A7AB8),
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                ? ElevatedButton(
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            "Booked demo on ${slot['day']}",
+                                          ),
                                         ),
-                                        child: const Text("Book Demo", style: TextStyle(fontSize: 14)),
-                                      )
-                                    : Text(slot['status'], style: const TextStyle(color: Colors.red)),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF4A7AB8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 8,
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      "Book Demo",
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                  )
+                                : Text(
+                                    slot['status'],
+                                    style: const TextStyle(color: Colors.red),
+                                  ),
                           ),
                         );
                       }).toList(),
@@ -705,7 +811,9 @@ Future<void> _loadAvailability() async {
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
                     ),
                     child: const Text("Delete Account"),
                   ),
@@ -719,7 +827,11 @@ Future<void> _loadAvailability() async {
     );
   }
 
-  Widget _buildEditableField(String label, TextEditingController controller, {bool enabled = true}) {
+  Widget _buildEditableField(
+    String label,
+    TextEditingController controller, {
+    bool enabled = true,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -727,7 +839,11 @@ Future<void> _loadAvailability() async {
           width: 120,
           child: Text(
             "$label :",
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ),
         Expanded(
@@ -738,8 +854,12 @@ Future<void> _loadAvailability() async {
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 8),
-                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
-                    focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
                   ),
                 )
               : Text(

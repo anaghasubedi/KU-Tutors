@@ -9,23 +9,23 @@ class ApiService {
   //runserver using python manage.py runserver 0.0.0.0:8000 for connecting with backend
 
   // Login method
-  static Future<Map<String, dynamic>> login(String email, String password) async {
+  static Future<Map<String, dynamic>> login(
+    String email,
+    String password,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/login/'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
+        body: jsonEncode({'email': email, 'password': password}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
+
         // Save token to local storage
         await _saveToken(data['token']);
-        
+
         return data;
       } else if (response.statusCode == 403) {
         // Email not verified
@@ -38,8 +38,11 @@ class ApiService {
         throw Exception(error['error'] ?? 'Login failed');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to server. Make sure your Django server is running.');
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
+        throw Exception(
+          'Cannot connect to server. Make sure your Django server is running.',
+        );
       }
       rethrow;
     }
@@ -62,7 +65,7 @@ class ApiService {
     try {
       // Get token BEFORE removing it
       final token = await getToken();
-      
+
       if (token != null) {
         // Call backend to invalidate token
         await http.post(
@@ -132,38 +135,42 @@ class ApiService {
         throw Exception('Signup failed');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
-        throw Exception('Cannot connect to server. Make sure your Django server is running.');
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
+        throw Exception(
+          'Cannot connect to server. Make sure your Django server is running.',
+        );
       }
       rethrow;
     }
   }
 
   // Verify email method
-  static Future<Map<String, dynamic>> verifyEmail(String email, String code) async {
+  static Future<Map<String, dynamic>> verifyEmail(
+    String email,
+    String code,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/verify-email/'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'verification_code': code,
-        }),
+        body: jsonEncode({'email': email, 'verification_code': code}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
+
         // Save token after verification
         await _saveToken(data['token']);
-        
+
         return data;
       } else {
         final error = jsonDecode(response.body);
         throw Exception(error['error'] ?? 'Verification failed');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
@@ -176,9 +183,7 @@ class ApiService {
       final response = await http.post(
         Uri.parse('$baseUrl/forgot-password/'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-        }),
+        body: jsonEncode({'email': email}),
       );
 
       if (response.statusCode == 200) {
@@ -189,7 +194,8 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to send reset code');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
@@ -221,7 +227,8 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to reset password');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
@@ -252,14 +259,15 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to get profile');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
     }
   }
 
-  // Get profile data for update-profile endpoint 
+  // Get profile data for update-profile endpoint
   static Future<Map<String, dynamic>> getProfileData() async {
     try {
       final token = await getToken();
@@ -283,14 +291,15 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to get profile');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
     }
   }
 
-  // Update user profile 
+  // Update user profile
   static Future<Map<String, dynamic>> updateProfileData({
     String? name,
     String? phoneNumber,
@@ -299,6 +308,7 @@ class ApiService {
     String? subjectCode,
     String? rate,
     String? subjectRequired,
+    String? accountNumber,
   }) async {
     try {
       final token = await getToken();
@@ -315,6 +325,7 @@ class ApiService {
       if (subjectCode != null) body['subject_code'] = subjectCode;
       if (rate != null) body['rate'] = rate;
       if (subjectRequired != null) body['subject_required'] = subjectRequired;
+      if (accountNumber != null) body['account_number'] = accountNumber;
 
       final response = await http.patch(
         Uri.parse('$baseUrl/update-profile/'),
@@ -333,14 +344,15 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to update profile');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
     }
   }
 
-  // Upload profile image 
+  // Upload profile image
   static Future<Map<String, dynamic>> uploadProfileImage(File imageFile) async {
     try {
       final token = await getToken();
@@ -352,12 +364,11 @@ class ApiService {
         'POST',
         Uri.parse('$baseUrl/upload-image/'),
       );
-      
+
       request.headers['Authorization'] = 'Token $token';
-      request.files.add(await http.MultipartFile.fromPath(
-        'image',
-        imageFile.path,
-      ));
+      request.files.add(
+        await http.MultipartFile.fromPath('image', imageFile.path),
+      );
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
@@ -370,14 +381,15 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to upload image');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
     }
   }
 
-  // Delete account 
+  // Delete account
   static Future<void> deleteAccount() async {
     try {
       final token = await getToken();
@@ -402,7 +414,8 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to delete account');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
@@ -433,7 +446,9 @@ class ApiService {
         queryParams['subject'] = subject;
       }
 
-      final uri = Uri.parse('$baseUrl/list-tutors/').replace(queryParameters: queryParams);
+      final uri = Uri.parse(
+        '$baseUrl/list-tutors/',
+      ).replace(queryParameters: queryParams);
 
       final response = await http.get(
         uri,
@@ -451,7 +466,8 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to load tutors');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
@@ -459,7 +475,9 @@ class ApiService {
   }
 
   // Search tutors by subject
-  static Future<Map<String, dynamic>> searchTutorsBySubject(String query) async {
+  static Future<Map<String, dynamic>> searchTutorsBySubject(
+    String query,
+  ) async {
     try {
       final token = await getToken();
       if (token == null) {
@@ -482,7 +500,8 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to search tutors');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
@@ -513,7 +532,8 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to load departments');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
@@ -548,14 +568,15 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to load subjects');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
     }
   }
 
-  // Get specific tutor profile 
+  // Get specific tutor profile
   static Future<Map<String, dynamic>> getTutorProfile(int tutorId) async {
     try {
       final token = await getToken();
@@ -579,14 +600,15 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to load tutor profile');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;
     }
   }
 
-  // Update user profile 
+  // Update user profile
   static Future<Map<String, dynamic>> updateProfile({
     required String firstName,
     required String lastName,
@@ -619,7 +641,8 @@ class ApiService {
         throw Exception(error['error'] ?? 'Failed to update profile');
       }
     } catch (e) {
-      if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('Connection refused')) {
         throw Exception('Cannot connect to server.');
       }
       rethrow;

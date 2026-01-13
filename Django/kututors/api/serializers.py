@@ -87,22 +87,16 @@ class LoginSerializer(serializers.Serializer):
 class TutorProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     profile_picture_url = serializers.SerializerMethodField()
-    bankqr_url = serializers.SerializerMethodField()
     is_online = serializers.SerializerMethodField()
     
     class Meta:
         model = TutorProfile
         fields = ['id', 'user', 'subject', 'semester', 'subjectcode', 'department', 'available', 
-                  'accountnumber', 'profile_picture_url', 'bankqr_url', 'is_online']
+                  'accountnumber', 'profile_picture_url', 'is_online']
     
     def get_profile_picture_url(self, obj):
         if obj.profile_picture:
             return obj.profile_picture.url
-        return None
-    
-    def get_bankqr_url(self, obj):
-        if obj.bankqr:
-            return obj.bankqr.url
         return None
     
     def get_is_online(self, obj):
@@ -144,8 +138,7 @@ class UpdateProfileSerializer(serializers.Serializer):
     semester = serializers.CharField(required=False)
     subject_code = serializers.CharField(required=False)  # For tutors
     department = serializers.CharField(required=False)  # For tutors
-    rate = serializers.CharField(required=False)  # For tutors
-    subject_required = serializers.CharField(required=False)  # For tutees
+    rate = serializers.CharField(required=False)  # For tutors  # For tutees
 
 class AvailabilitySerializer(serializers.ModelSerializer):
     formatted_date = serializers.SerializerMethodField()

@@ -319,7 +319,9 @@ def update_profile(request):
                 if 'subject_code' in request.data:
                     profile.subjectcode = request.data.get('subject_code')
                 if 'rate' in request.data:
-                    profile.accountnumber = request.data.get('rate')
+                    profile.rate = request.data.get('rate')
+                if 'account_number' in request.data:
+                    profile.accountnumber = request.data.get('account_number')
                 profile.save()
             except:
                 pass
