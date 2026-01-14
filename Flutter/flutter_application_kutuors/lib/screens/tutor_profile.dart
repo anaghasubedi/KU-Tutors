@@ -25,9 +25,11 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
   final TextEditingController _departmentController = TextEditingController();
-  final TextEditingController _subjectCodeController = TextEditingController();
+  final TextEditingController _yearController = TextEditingController();
+  final TextEditingController _semesterController = TextEditingController();
   final TextEditingController _rateController = TextEditingController();
-  final TextEditingController _accountNumberController = TextEditingController();
+  final TextEditingController _accountNumberController =
+      TextEditingController();
 
   List<String> _subjects = [];
   List<Map<String, dynamic>> _availability = [];
@@ -82,7 +84,8 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
             _phoneController.text = data['phone_number'] ?? '';
             _subjectController.text = data['subject'] ?? '';
             _departmentController.text = data['department'] ?? '';
-            _subjectCodeController.text = data['subject_code'] ?? '';
+            _semesterController.text = data['semester'] ?? '';
+            _yearController.text = data['year'] ?? '';
             _rateController.text = data['rate'] ?? '';
             _accountNumberController.text = data['account_number'] ?? '';
           } else {
@@ -94,7 +97,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
             _phoneController.text = user['contact'] ?? '';
             _subjectController.text = data['subject'] ?? '';
             _departmentController.text = data['department'] ?? '';
-            _subjectCodeController.text = data['subjectcode'] ?? '';
             _rateController.text = data['rate'] ?? '';
             _accountNumberController.text = data['account_number'] ?? '';
           }
@@ -470,7 +472,8 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           'phone_number': _phoneController.text,
           'subject': _subjectController.text,
           'department': _departmentController.text,
-          'subject_code': _subjectCodeController.text,
+          'year': _yearController.text,
+          'semester': _semesterController.text,
           'rate': _rateController.text,
           'account_number': _accountNumberController.text,
         }),
@@ -602,12 +605,15 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                     ),
                     const SizedBox(height: 12),
                     _buildEditableField("Phone No", _phoneController),
+
                     const SizedBox(height: 12),
                     _buildEditableField("Subject", _subjectController),
                     const SizedBox(height: 12),
                     _buildEditableField("Department", _departmentController),
                     const SizedBox(height: 12),
-                    _buildEditableField("Subject Code", _subjectCodeController),
+                    _buildEditableField("Year", _yearController),
+                    const SizedBox(height: 12),
+                    _buildEditableField("Semester", _semesterController),
                     const SizedBox(height: 12),
                     _buildEditableField("Rate", _rateController),
                     const SizedBox(height: 24),
@@ -878,7 +884,8 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     _phoneController.dispose();
     _subjectController.dispose();
     _departmentController.dispose();
-    _subjectCodeController.dispose();
+    _yearController.dispose();
+    _semesterController.dispose();
     _rateController.dispose();
     super.dispose();
   }
