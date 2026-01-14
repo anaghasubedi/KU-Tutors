@@ -307,7 +307,8 @@ class ApiService {
     String? semester,
     String? subjectCode,
     String? rate,
-    String? subjectRequired,
+    String? year,
+    String? department,
     String? accountNumber,
   }) async {
     try {
@@ -324,7 +325,8 @@ class ApiService {
       if (semester != null) body['semester'] = semester;
       if (subjectCode != null) body['subject_code'] = subjectCode;
       if (rate != null) body['rate'] = rate;
-      if (subjectRequired != null) body['subject_required'] = subjectRequired;
+      if (year != null) body['year'] = year;
+      if (department != null) body['department'] = department;
       if (accountNumber != null) body['account_number'] = accountNumber;
 
       final response = await http.patch(
