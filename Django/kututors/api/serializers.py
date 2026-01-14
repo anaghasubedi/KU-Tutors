@@ -134,7 +134,8 @@ class VerifyEmailSerializer(serializers.Serializer):
 class UpdateProfileSerializer(serializers.Serializer):
     name = serializers.CharField(required=False)
     phone_number = serializers.CharField(required=False)
-    subject = serializers.CharField(required=False)  # For tutors
+    subject = serializers.CharField(required=False) 
+    year = serializers.CharField(required=False) 
     semester = serializers.CharField(required=False)
     subject_code = serializers.CharField(required=False)  # For tutors
     department = serializers.CharField(required=False)  # For tutors

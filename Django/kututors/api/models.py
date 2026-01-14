@@ -58,8 +58,8 @@ class TutorProfile(models.Model):
     
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='tutor_profile')
     subject = models.CharField(max_length=50, default="Not Specified")
+    year = models.CharField(max_length=20, default="Unknown")
     semester = models.CharField(max_length=20, default="Unknown")
-    subjectcode = models.CharField(max_length=10, default="Unknown")
     department = models.CharField(max_length=50, choices=DEPARTMENT_CHOICES, default="Computer Science")
     available = models.BooleanField(default=True)
     accountnumber = models.CharField(max_length=20, default="Not Provided")
@@ -69,9 +69,17 @@ class TutorProfile(models.Model):
         return f"{self.user.username} - {self.subject}"
 
 class TuteeProfile(models.Model):
+    DEPARTMENT_CHOICES = [
+        ('Computer Science', 'Computer Science'),
+        ('Computer Engineering', 'Computer Engineering'),
+    ]
+    
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='tutee_profile')
-    semester = models.CharField(max_length=20, default="Not Specified")
-    profile_picture = models.ImageField(upload_to='tutee_profiles/', null=True, blank=True)
+    year = models.CharField(max_length=20, default="Unknown")
+    semester = models.CharField(max_length=20, default="Unknown")
+    department = models.CharField(max_length=50, choices=DEPARTMENT_CHOICES, default="Computer Science")
+    profile_picture = models.ImageField(upload_to='tutor_profiles/pictures/', null=True, blank=True)
+    
     
     def __str__(self):
         return f"{self.user.username} - {self.semester}"

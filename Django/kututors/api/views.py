@@ -277,9 +277,12 @@ def update_profile(request):
                 tutor_profile = user.tutor_profile
                 profile_data.update({
                     'subject': tutor_profile.subject,
+                    'department': tutor_profile.department,
                     'semester': tutor_profile.semester,
+                    'year': tutor_profile.year,
                     'subject_code': tutor_profile.subjectcode,
-                    'rate': str(tutor_profile.accountnumber) if tutor_profile.accountnumber else None,
+                    'rate': str(tutor_profile.rate) if tutor_profile.rate else None,
+                    'account_number': str(tutor_profile.accountNumber) if tutor_profile.accountNumber else None,
                 })
             except:
                 pass
@@ -288,7 +291,8 @@ def update_profile(request):
                 tutee_profile = user.tutee_profile
                 profile_data.update({
                     'semester': tutee_profile.semester,
-                    'subject_required': tutee_profile.subjectreqd,
+                    'year': tutee_profile.year,
+                    'department': tutee_profile.department,
                 })
             except:
                 pass
@@ -314,10 +318,12 @@ def update_profile(request):
                 profile = user.tutor_profile
                 if 'subject' in request.data:
                     profile.subject = request.data.get('subject')
+                if 'year' in request.data:
+                    profile.year = request.year.get('year')
                 if 'semester' in request.data:
                     profile.semester = request.data.get('semester')
-                if 'subject_code' in request.data:
-                    profile.subjectcode = request.data.get('subject_code')
+                if 'subject' in request.data:
+                    profile.subject = request.data.get('subject')
                 if 'rate' in request.data:
                     profile.rate = request.data.get('rate')
                 if 'account_number' in request.data:
@@ -329,10 +335,12 @@ def update_profile(request):
         elif user.role == 'Tutee':
             try:
                 profile = user.tutee_profile
+                if 'year' in request.data:
+                    profile.year = request.data.get('year')
                 if 'semester' in request.data:
                     profile.semester = request.data.get('semester')
-                if 'subject_required' in request.data:
-                    profile.subjectreqd = request.data.get('subject_required')
+                if 'department' in request.data:
+                    profile.department = request.data.get('department')
                 profile.save()
             except:
                 pass
@@ -410,14 +418,13 @@ def list_tutors(request):
         
         # Apply department filter (assuming semester contains department info)
         if department:
-            tutors = tutors.filter(semester__icontains=department)
+            tutors = tutors.filter(department__icontains=department)
         
         # Apply subject filter (search in both subject and subject code)
         if subject_filter:
             from django.db.models import Q
             tutors = tutors.filter(
-                Q(subject__icontains=subject_filter) |
-                Q(subjectcode__icontains=subject_filter)
+                Q(subject__icontains=subject_filter) 
             )
         
         # Serialize the data

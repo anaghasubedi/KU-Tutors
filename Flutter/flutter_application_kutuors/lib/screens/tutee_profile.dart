@@ -6,7 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TuteeProfilePage extends StatefulWidget {
-  final bool isPrivateView; // true: user editing own profile, false: public view
+  final bool
+  isPrivateView; // true: user editing own profile, false: public view
   const TuteeProfilePage({super.key, this.isPrivateView = true});
 
   @override
@@ -22,10 +23,12 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   final TextEditingController _kuEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _departmentController = TextEditingController();
-  final TextEditingController _subjectRequiredController = TextEditingController();
+  final TextEditingController _yearController = TextEditingController();
+  final TextEditingController _semesterController = TextEditingController();
 
   // API Base URL - Update this to match your backend
-  static const String baseUrl = 'http://192.168.16.245:8000'; // Use 10.0.2.2 for Android emulator, localhost for iOS
+  static const String baseUrl =
+      'http://192.168.1.80:8000'; // Use 10.0.2.2 for Android emulator, localhost for iOS
 
   @override
   void initState() {
@@ -35,7 +38,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
 
   Future<void> _loadUserProfile() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString('auth_token');
@@ -54,18 +57,18 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
+
         setState(() {
           _nameController.text = data['name'] ?? '';
           _kuEmailController.text = data['email'] ?? '';
           _phoneController.text = data['phone_number'] ?? '';
           _departmentController.text = data['department'] ?? '';
-          _subjectRequiredController.text = data['subject_required'] ?? '';
+          _yearController.text = data['year'] ?? '';
+          _semesterController.text = data['semester'] ?? '';
           _isLoading = false;
         });
 
         // Load profile picture if available
-        // You'll need to add this endpoint to your backend
         // await _loadProfilePicture();
       } else {
         throw Exception('Failed to load profile');
@@ -74,17 +77,18 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
       debugPrint('Error loading profile: $e');
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load profile: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
       }
     }
   }
 
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile =
-          await ImagePicker().pickImage(source: ImageSource.gallery);
+      final XFile? pickedFile = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+      );
       if (pickedFile != null) {
         final bytes = await pickedFile.readAsBytes();
         setState(() {
@@ -97,9 +101,9 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     } catch (e) {
       debugPrint('Error picking image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload image')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to upload image')));
       }
     }
   }
@@ -113,15 +117,14 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         'POST',
         Uri.parse('$baseUrl/api/upload-image/'),
       );
-      
+
       request.headers['Authorization'] = 'Token $token';
-      request.files.add(await http.MultipartFile.fromPath(
-        'image',
-        imageFile.path,
-      ));
+      request.files.add(
+        await http.MultipartFile.fromPath('image', imageFile.path),
+      );
 
       final response = await request.send();
-      
+
       if (response.statusCode == 200) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -134,9 +137,9 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     } catch (e) {
       debugPrint('Error uploading image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to upload image: $e')));
       }
     }
   }
@@ -156,7 +159,8 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
           'name': _nameController.text,
           'phone_number': _phoneController.text,
           'department': _departmentController.text,
-          'subject_required': _subjectRequiredController.text,
+          'year': _yearController.text,
+          'semester': _semesterController.text,
         }),
       );
 
@@ -173,9 +177,9 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     } catch (e) {
       debugPrint('Error saving profile: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save profile: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save profile: $e')));
       }
     }
   }
@@ -220,12 +224,12 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
       if (response.statusCode == 200) {
         // Clear stored data
         await prefs.clear();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Account deleted successfully')),
           );
-          
+
           // Navigate to login page
           Navigator.pushReplacementNamed(context, '/login');
         }
@@ -235,9 +239,9 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     } catch (e) {
       debugPrint('Error deleting account: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete account: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete account: $e')));
       }
     }
   }
@@ -247,35 +251,33 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFF4A7AB8),
-        body: Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
+        body: Center(child: CircularProgressIndicator(color: Colors.white)),
       );
     }
 
-return Scaffold(
-  backgroundColor: const Color(0xFF4A7AB8),
-  appBar: AppBar(
-    backgroundColor: const Color(0xFF4A7AB8),
-    elevation: 0,
-    automaticallyImplyLeading: false,
-    title: const Text(
-      'Tutee Profile',
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
+    return Scaffold(
+      backgroundColor: const Color(0xFF4A7AB8),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF4A7AB8),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'Tutee Profile',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
       ),
-    ),
-    centerTitle: true,
-  ),
-  body: SafeArea(
-    child: SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Container(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: const Color(0xFF8BA3C7),
@@ -286,11 +288,11 @@ return Scaffold(
                       GestureDetector(
                         onTap: widget.isPrivateView ? _pickImage : null,
                         child: Container(
-                          width: 150,
-                          height: 150,
+                          width: 120,
+                          height: 120,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.white,
+                            shape: BoxShape.circle,
                             image: _imageBytes != null
                                 ? DecorationImage(
                                     image: MemoryImage(_imageBytes!),
@@ -309,51 +311,49 @@ return Scaffold(
                                     ),
                                     SizedBox(height: 8),
                                     Text(
-                                      'PHOTO',
+                                      'Add Photo',
                                       style: TextStyle(
                                         fontSize: 18,
                                         color: Colors.grey,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Tap to upload',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
                                   ],
                                 )
                               : widget.isPrivateView
-                                  ? Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
-                                        color: Colors.black.withValues(alpha: 0.3),
-                                      ),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.edit,
-                                          color: Colors.white,
-                                          size: 30,
-                                        ),
-                                      ),
-                                    )
-                                  : null,
+                              ? Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.edit,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
+                                  ),
+                                )
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 24),
 
                       _buildEditableField('Name', _nameController),
                       const SizedBox(height: 12),
-                      _buildEditableField('KU Email', _kuEmailController, enabled: false),
-                      const SizedBox(height: 12),
+                      _buildEditableField(
+                        'KU Email',
+                        _kuEmailController,
+                        enabled: false,
+                      ),
+                      const SizedBox(height: 22),
                       _buildEditableField('Phone no', _phoneController),
                       const SizedBox(height: 12),
                       _buildEditableField('Department', _departmentController),
                       const SizedBox(height: 12),
-                      _buildEditableField('Subject Required', _subjectRequiredController),
+                      _buildEditableField('Year', _yearController),
+                      const SizedBox(height: 12),
+                      _buildEditableField('Semester', _semesterController),
                       const SizedBox(height: 32),
 
                       if (widget.isPrivateView) ...[
@@ -418,7 +418,11 @@ return Scaffold(
     );
   }
 
-  Widget _buildEditableField(String label, TextEditingController controller, {bool enabled = true}) {
+  Widget _buildEditableField(
+    String label,
+    TextEditingController controller, {
+    bool enabled = true,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -446,11 +450,14 @@ return Scaffold(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 8),
                     border: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white)),
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
                     enabledBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white)),
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
                     focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white)),
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
                   ),
                 )
               : Text(
@@ -472,7 +479,8 @@ return Scaffold(
     _kuEmailController.dispose();
     _phoneController.dispose();
     _departmentController.dispose();
-    _subjectRequiredController.dispose();
+    _yearController.dispose();
+    _semesterController.dispose();
     super.dispose();
   }
 }

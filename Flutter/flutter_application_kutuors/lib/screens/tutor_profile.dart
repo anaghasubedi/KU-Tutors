@@ -32,7 +32,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   List<String> _subjects = [];
   List<Map<String, dynamic>> _availability = [];
 
-  static const String baseUrl = 'http://192.168.16.245:8000';
+  static const String baseUrl = 'http://192.168.1.80:8000';
 
   @override
   void initState() {

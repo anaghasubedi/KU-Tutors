@@ -32,7 +32,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   String? _selectedSubject;
   
   // API Base URL -match with backend
-  static const String baseUrl = 'http://192.168.16.1:8000';
+  static const String baseUrl = 'http://192.168.1.80:8000';
 
   // Subject data for Computer Science
   final Map<String, String> _computerScienceSubjects = {
