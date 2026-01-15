@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
 import 'login.dart';
 import 'verify_signup.dart'; // Changed from verifyemail.dart
 
@@ -86,7 +86,7 @@ class _SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.signup(
+      final response = await services.authService.signup(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         phoneNumber: _phoneController.text.trim(),

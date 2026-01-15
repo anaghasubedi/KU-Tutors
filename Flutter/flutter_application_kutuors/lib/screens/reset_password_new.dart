@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
 import 'login.dart';
 
 class ResetPasswordNewPage extends StatefulWidget {
@@ -65,7 +65,7 @@ class _ResetPasswordNewPageState extends State<ResetPasswordNewPage> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.resetPassword(
+      final response = await services.authService.resetPassword(
         email: widget.email,
         verificationCode: widget.verificationCode,
         newPassword: _newPasswordController.text,

@@ -1,8 +1,5 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/api_service.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
 import 'tutee_profile.dart';
 import 'tutor_profile.dart';
 import 'browse_tutors.dart';
@@ -30,9 +27,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedDepartment;
   String? _selectedSubject;
-  
-  // API Base URL -match with backend
-  static const String baseUrl = 'http://192.168.1.80:8000';
 
   // Subject data for Computer Science
   final Map<String, String> _computerScienceSubjects = {
@@ -152,27 +146,13 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     setState(() => _isLoadingTutors = true);
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/list-tutors/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _tutors = List<Map<String, dynamic>>.from(data['tutors']);
-          _filteredTutors = _tutors;
-          _isLoadingTutors = false;
-        });
-      } else {
-        throw Exception('Failed to load tutors');
-      }
+      final data = await services.tutorService.listTutors();
+      
+      setState(() {
+        _tutors = List<Map<String, dynamic>>.from(data['tutors']);
+        _filteredTutors = _tutors;
+        _isLoadingTutors = false;
+      });
     } catch (e) {
       debugPrint('Error loading tutors: $e');
       setState(() => _isLoadingTutors = false);
@@ -188,26 +168,12 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     setState(() => _isLoadingDemoSessions = true);
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/demo-sessions/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _demoSessions = List<Map<String, dynamic>>.from(data['demo_sessions'] ?? []);
-          _isLoadingDemoSessions = false;
-        });
-      } else {
-        throw Exception('Failed to load demo sessions');
-      }
+      final data = await services.tuteeService.getDemoSessions();
+      
+      setState(() {
+        _demoSessions = List<Map<String, dynamic>>.from(data['demo_sessions'] ?? []);
+        _isLoadingDemoSessions = false;
+      });
     } catch (e) {
       debugPrint('Error loading demo sessions: $e');
       setState(() => _isLoadingDemoSessions = false);
@@ -218,26 +184,12 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     setState(() => _isLoadingBookedClasses = true);
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/booked-classes/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _bookedClasses = List<Map<String, dynamic>>.from(data['booked_classes'] ?? []);
-          _isLoadingBookedClasses = false;
-        });
-      } else {
-        throw Exception('Failed to load booked classes');
-      }
+      final data = await services.tuteeService.getBookedClasses();
+      
+      setState(() {
+        _bookedClasses = List<Map<String, dynamic>>.from(data['booked_classes'] ?? []);
+        _isLoadingBookedClasses = false;
+      });
     } catch (e) {
       debugPrint('Error loading booked classes: $e');
       setState(() => _isLoadingBookedClasses = false);
@@ -246,28 +198,14 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
 
   Future<void> _bookDemoSession(Map<String, dynamic> session) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/book-demo-session/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({'session_id': session['id']}),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Demo session booked successfully!')),
-          );
-          _loadDemoSessions();
-          _loadBookedClasses();
-        }
-      } else {
-        throw Exception('Failed to book demo session');
+      await services.tuteeService.bookDemoSession(session['id']);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Demo session booked successfully!')),
+        );
+        _loadDemoSessions();
+        _loadBookedClasses();
       }
     } catch (e) {
       debugPrint('Error booking demo session: $e');
@@ -301,26 +239,13 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     if (confirmed != true) return;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.delete(
-        Uri.parse('$baseUrl/api/cancel-booking/${booking['id']}/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Booking cancelled successfully')),
-          );
-          _loadBookedClasses();
-        }
-      } else {
-        throw Exception('Failed to cancel booking');
+      await services.tuteeService.cancelBooking(booking['id']);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking cancelled successfully')),
+        );
+        _loadBookedClasses();
       }
     } catch (e) {
       debugPrint('Error cancelling booking: $e');
@@ -392,7 +317,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
 
     if (confirmed == true && mounted) {
       try {
-        await ApiService.logout();
+        await services.authService.logout();
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
@@ -401,9 +326,9 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
         );
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: $e'))
+        );
       }
     }
   }
@@ -426,25 +351,25 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     }
   }
 
-void _viewTutorProfile(Map<String, dynamic> tutor) {
-  final tutorId = tutor['id']; // Get tutor profile ID
-  
-  if (tutorId != null) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => TutorProfilePage(
-          isOwner: false,
-          tutorId: tutorId, // Pass the tutor ID
+  void _viewTutorProfile(Map<String, dynamic> tutor) {
+    final tutorId = tutor['id']; // Get tutor profile ID
+    
+    if (tutorId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TutorProfilePage(
+            isOwner: false,
+            tutorId: tutorId, // Pass the tutor ID
+          ),
         ),
-      ),
-    );
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Unable to load tutor profile')),
-    );
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to load tutor profile')),
+      );
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -595,27 +520,27 @@ void _viewTutorProfile(Map<String, dynamic> tutor) {
                               fontSize: 16,
                             ),
                           ),
-                      if (_filteredTutors.length > 5)
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const BrowseTutorsPage(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                             'Show More',
+                          if (_filteredTutors.length > 5)
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const BrowseTutorsPage(),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                'Show More',
                                 style: TextStyle(
                                   color: Color(0xFF305E9D),
                                   fontWeight: FontWeight.bold,
                                 ),
-                               ),
-                             ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                       
                       // Loading state
                       if (_isLoadingTutors)

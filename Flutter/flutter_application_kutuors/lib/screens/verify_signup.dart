@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
 import 'tutor_home_page.dart';
 import 'tutee_home_page.dart';
 
@@ -46,7 +46,7 @@ class _VerifySignupPageState extends State<VerifySignupPage> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.verifyEmail(
+      final response = await services.authService.verifyEmail(
         widget.email,
         _codeController.text.trim(),
       );

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'screens/login.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
 
 void main() {
-  runApp(const MyApp());
+  services.initialize();
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {

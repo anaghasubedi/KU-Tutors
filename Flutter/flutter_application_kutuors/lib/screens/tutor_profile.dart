@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
+import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class TutorProfilePage extends StatefulWidget {
   final bool isOwner;
@@ -18,7 +19,6 @@ class TutorProfilePage extends StatefulWidget {
 class _TutorProfilePageState extends State<TutorProfilePage> {
   Uint8List? _imageBytes;
   bool _isLoading = true;
-  String? _token;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _kuEmailController = TextEditingController();
@@ -28,13 +28,10 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _semesterController = TextEditingController();
   final TextEditingController _rateController = TextEditingController();
-  final TextEditingController _accountNumberController =
-      TextEditingController();
+  final TextEditingController _accountNumberController = TextEditingController();
 
   List<String> _subjects = [];
   List<Map<String, dynamic>> _availability = [];
-
-  static const String baseUrl = 'http://192.168.1.80:8000';
 
   @override
   void initState() {
@@ -47,111 +44,107 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     setState(() => _isLoading = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString('auth_token');
-
-      if (_token == null) throw Exception('No authentication token found');
-
-      // Determine which endpoint to use
-      String endpoint;
+      Map<String, dynamic> data;
+      
       if (widget.isOwner) {
-        // Load own profile
-        endpoint = '$baseUrl/api/update-profile/';
+        data = await services.profileService.getProfileData();
+        setState(() {
+          _nameController.text = data['name'] ?? '';
+          _kuEmailController.text = data['email'] ?? '';
+          _phoneController.text = data['phone_number'] ?? '';
+          _subjectController.text = data['subject'] ?? '';
+          _departmentController.text = data['department'] ?? '';
+          _semesterController.text = data['semester'] ?? '';
+          _yearController.text = data['year'] ?? '';
+          _rateController.text = data['rate'] ?? '';
+          _accountNumberController.text = data['account_number'] ?? '';
+        });
       } else if (widget.tutorId != null) {
-        // Load specific tutor's public profile
-        endpoint = '$baseUrl/api/tutor/${widget.tutorId}/';
+        data = await services.tutorService.getTutorProfile(widget.tutorId!);
+        final user = data['user'];
+        setState(() {
+          _nameController.text = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
+          _kuEmailController.text = user['email'] ?? '';
+          _phoneController.text = user['contact'] ?? '';
+          _subjectController.text = data['subject'] ?? '';
+          _departmentController.text = data['department'] ?? '';
+          _rateController.text = data['rate'] ?? '';
+          _accountNumberController.text = data['account_number'] ?? '';
+        });
       } else {
         throw Exception('No tutor ID provided for public view');
       }
 
-      final response = await http.get(
-        Uri.parse(endpoint),
-        headers: {
-          'Authorization': 'Token $_token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        setState(() {
-          // Handle different response structures
-          if (widget.isOwner) {
-            // Own profile response from update-profile endpoint
-            _nameController.text = data['name'] ?? '';
-            _kuEmailController.text = data['email'] ?? '';
-            _phoneController.text = data['phone_number'] ?? '';
-            _subjectController.text = data['subject'] ?? '';
-            _departmentController.text = data['department'] ?? '';
-            _semesterController.text = data['semester'] ?? '';
-            _yearController.text = data['year'] ?? '';
-            _rateController.text = data['rate'] ?? '';
-            _accountNumberController.text = data['account_number'] ?? '';
-          } else {
-            // Public tutor profile response from tutor/:id endpoint
-            final user = data['user'];
-            _nameController.text =
-                '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
-            _kuEmailController.text = user['email'] ?? '';
-            _phoneController.text = user['contact'] ?? '';
-            _subjectController.text = data['subject'] ?? '';
-            _departmentController.text = data['department'] ?? '';
-            _rateController.text = data['rate'] ?? '';
-            _accountNumberController.text = data['account_number'] ?? '';
-          }
-
-          if (_subjectController.text.isNotEmpty) {
-            _subjects = _subjectController.text
-                .split(',')
-                .map((s) => s.trim())
-                .toList();
-          }
-
-          _isLoading = false;
-        });
-      } else {
-        throw Exception('Failed to load profile');
+      if (_subjectController.text.isNotEmpty) {
+        _subjects = _subjectController.text.split(',').map((s) => s.trim()).toList();
       }
+
+      setState(() => _isLoading = false);
+      
+      // Load profile picture if available
+      await _loadProfilePicture();
     } catch (e) {
       debugPrint('Error loading profile: $e');
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load profile: $e')),
+        );
       }
+    }
+  }
+
+  Future<void> _loadProfilePicture() async {
+    try {
+      final imageData = await services.profileService.getProfileImage();
+      
+      if (imageData != null) {
+        // Check if it's a URL or base64 string
+        if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
+          // It's a URL, fetch the image
+          final response = await http.get(Uri.parse(imageData));
+          if (response.statusCode == 200) {
+            setState(() {
+              _imageBytes = response.bodyBytes;
+            });
+          }
+        } else if (imageData.startsWith('data:image')) {
+          // It's a base64 data URL
+          final base64String = imageData.split(',').last;
+          setState(() {
+            _imageBytes = base64Decode(base64String);
+          });
+        } else {
+          // It's a plain base64 string
+          setState(() {
+            _imageBytes = base64Decode(imageData);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading profile picture: $e');
     }
   }
 
   Future<void> _loadAvailability() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      String endpoint;
+      Map<String, dynamic> data;
+      
       if (widget.isOwner) {
-        endpoint = '$baseUrl/api/availability/';
+        data = await services.availabilityService.getAvailability();
       } else if (widget.tutorId != null) {
-        endpoint = '$baseUrl/api/tutor/${widget.tutorId}/availability/';
+        data = await services.availabilityService.getTutorAvailability(widget.tutorId!);
       } else {
         return;
       }
 
-      final response = await http.get(
-        Uri.parse(endpoint),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _availability = List<Map<String, dynamic>>.from(data['slots'] ?? []);
-        });
-      }
+      debugPrint('Availability data received: $data');
+      
+      setState(() {
+        _availability = List<Map<String, dynamic>>.from(data['slots'] ?? []);
+      });
+      
+      debugPrint('Availability updated: $_availability');
     } catch (e) {
       debugPrint('Error loading availability: $e');
     }
@@ -229,9 +222,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
             ),
             TextButton(
               onPressed: () async {
-                if (selectedDate != null &&
-                    startTime != null &&
-                    endTime != null) {
+                if (selectedDate != null && startTime != null && endTime != null) {
                   Navigator.pop(context);
                   await _addAvailability(selectedDate!, startTime!, endTime!);
                 }
@@ -250,41 +241,35 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     TimeOfDay endTime,
   ) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final startTimeStr = '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}';
+      final endTimeStr = '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/tutor/availability/add/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'date':
-              '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
-          'start_time':
-              '${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}',
-          'end_time':
-              '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}',
-        }),
+      await services.availabilityService.addAvailability(
+        date: dateStr,
+        startTime: startTimeStr,
+        endTime: endTimeStr,
       );
 
-      if (response.statusCode == 201) {
-        await _loadAvailability();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Availability added successfully')),
-          );
-        }
-      } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error'] ?? 'Failed to add availability');
+      // Successfully added - reload availability
+      await _loadAvailability();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Availability added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error adding availability: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add availability: $e')),
+          SnackBar(
+            content: Text('Failed to add availability: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -292,49 +277,60 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
 
   Future<void> _deleteAvailability(int id) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.delete(
-        Uri.parse('$baseUrl/api/tutor/availability/$id/delete/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        await _loadAvailability();
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Availability deleted')));
-        }
+      await services.availabilityService.deleteAvailability(id);
+      
+      // Successfully deleted - reload availability
+      await _loadAvailability();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Availability deleted'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error deleting availability: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete availability: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _updateAvailabilityStatus(int id, String newStatus) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.patch(
-        Uri.parse('$baseUrl/api/tutor/availability/$id/update/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({'status': newStatus}),
+      await services.availabilityService.updateAvailabilityStatus(
+        availabilityId: id,
+        status: newStatus,
       );
-
-      if (response.statusCode == 200) {
-        await _loadAvailability();
+      
+      // Successfully updated - reload availability
+      await _loadAvailability();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Status updated to $newStatus'),
+            backgroundColor: Colors.blue,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error updating availability: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -349,50 +345,33 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _imageBytes = bytes;
         });
 
-        await _uploadImage(pickedFile);
+        await _uploadImage(File(pickedFile.path));
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Failed to upload image')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to pick image')),
+        );
       }
     }
   }
 
-  Future<void> _uploadImage(XFile imageFile) async {
+  Future<void> _uploadImage(File imageFile) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/api/upload-image/'),
-      );
-
-      request.headers['Authorization'] = 'Token $token';
-      request.files.add(
-        await http.MultipartFile.fromPath('image', imageFile.path),
-      );
-
-      final response = await request.send();
-
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image uploaded successfully')),
-          );
-        }
-      } else {
-        throw Exception('Upload failed');
+      await services.profileService.uploadProfileImage(imageFile);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image uploaded successfully')),
+        );
       }
     } catch (e) {
       debugPrint('Error uploading image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to upload image: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload image: $e')),
+        );
       }
     }
   }
@@ -422,80 +401,50 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     if (confirm != true) return;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      await services.profileService.deleteAccount();
 
-      final response = await http.delete(
-        Uri.parse('$baseUrl/api/delete-account/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account deleted successfully')),
+        );
 
-      if (response.statusCode == 200) {
-        await prefs.clear();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Account deleted successfully')),
-          );
-
-          Navigator.pushReplacementNamed(context, '/login');
-        }
-      } else {
-        throw Exception('Failed to delete account');
+        Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       debugPrint('Error deleting account: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to delete account: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete account: $e')),
+        );
       }
     }
   }
 
   Future<void> _saveProfile() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.patch(
-        Uri.parse('$baseUrl/api/update-profile/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'name': _nameController.text,
-          'phone_number': _phoneController.text,
-          'subject': _subjectController.text,
-          'department': _departmentController.text,
-          'year': _yearController.text,
-          'semester': _semesterController.text,
-          'rate': _rateController.text,
-          'account_number': _accountNumberController.text,
-        }),
+      await services.profileService.updateProfileData(
+        name: _nameController.text,
+        phoneNumber: _phoneController.text,
+        subject: _subjectController.text,
+        department: _departmentController.text,
+        year: _yearController.text,
+        semester: _semesterController.text,
+        rate: _rateController.text,
+        accountNumber: _accountNumberController.text,
       );
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile saved successfully')),
-          );
-        }
-        await _loadUserProfile();
-      } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error'] ?? 'Failed to save profile');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile saved successfully')),
+        );
       }
+      await _loadUserProfile();
     } catch (e) {
       debugPrint('Error saving profile: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to save profile: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save profile: $e')),
+        );
       }
     }
   }
@@ -560,9 +509,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    widget.isOwner
-                                        ? Icons.add_a_photo
-                                        : Icons.person,
+                                    widget.isOwner ? Icons.add_a_photo : Icons.person,
                                     size: 40,
                                     color: Colors.grey,
                                   ),
@@ -578,34 +525,29 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                 ],
                               )
                             : widget.isOwner
-                            ? Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.black.withValues(alpha: 0.3),
-                                ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.edit,
-                                    color: Colors.white,
-                                    size: 30,
-                                  ),
-                                ),
-                              )
-                            : null,
+                                ? Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.black.withValues(alpha: 0.3),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.edit,
+                                        color: Colors.white,
+                                        size: 30,
+                                      ),
+                                    ),
+                                  )
+                                : null,
                       ),
                     ),
                     const SizedBox(height: 16),
 
                     _buildEditableField("Name", _nameController),
                     const SizedBox(height: 12),
-                    _buildEditableField(
-                      "KU Email",
-                      _kuEmailController,
-                      enabled: false,
-                    ),
+                    _buildEditableField("KU Email", _kuEmailController, enabled: false),
                     const SizedBox(height: 12),
                     _buildEditableField("Phone No", _phoneController),
-
                     const SizedBox(height: 12),
                     _buildEditableField("Subject", _subjectController),
                     const SizedBox(height: 12),
@@ -617,10 +559,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                     const SizedBox(height: 12),
                     _buildEditableField("Rate", _rateController),
                     const SizedBox(height: 24),
-                    _buildEditableField(
-                      "Account Number",
-                      _accountNumberController,
-                    ),
+                    _buildEditableField("Account Number", _accountNumberController),
                     const SizedBox(height: 12),
 
                     if (widget.isOwner)
@@ -636,10 +575,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                               borderRadius: BorderRadius.circular(24),
                             ),
                           ),
-                          child: const Text(
-                            "Save Profile",
-                            style: TextStyle(fontSize: 16),
-                          ),
+                          child: const Text("Save Profile", style: TextStyle(fontSize: 16)),
                         ),
                       ),
                   ],
@@ -699,10 +635,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: const Color(0xFF4A7AB8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                     ),
                 ],
@@ -723,8 +656,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                       children: _availability.map((slot) {
                         final isAvailable = slot['status'] == 'Available';
                         final dayName = slot['day_name'] ?? '';
-                        final formattedDate =
-                            slot['formatted_date'] ?? slot['date'];
+                        final formattedDate = slot['formatted_date'] ?? slot['date'];
 
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
@@ -753,53 +685,39 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                         ],
                                         onChanged: (value) {
                                           if (value != null) {
-                                            _updateAvailabilityStatus(
-                                              slot['id'],
-                                              value,
-                                            );
+                                            _updateAvailabilityStatus(slot['id'], value);
                                           }
                                         },
                                         underline: Container(),
                                       ),
                                       IconButton(
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                        ),
-                                        onPressed: () =>
-                                            _deleteAvailability(slot['id']),
+                                        icon: const Icon(Icons.delete, color: Colors.red),
+                                        onPressed: () => _deleteAvailability(slot['id']),
                                       ),
                                     ],
                                   )
                                 : isAvailable
-                                ? ElevatedButton(
-                                    onPressed: () {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            "Booked demo on ${slot['day']}",
+                                    ? ElevatedButton(
+                                        onPressed: () {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text("Booked demo on ${slot['day']}"),
+                                            ),
+                                          );
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF4A7AB8),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 8,
                                           ),
                                         ),
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF4A7AB8),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 8,
+                                        child: const Text("Book Demo", style: TextStyle(fontSize: 14)),
+                                      )
+                                    : Text(
+                                        slot['status'],
+                                        style: const TextStyle(color: Colors.red),
                                       ),
-                                    ),
-                                    child: const Text(
-                                      "Book Demo",
-                                      style: TextStyle(fontSize: 14),
-                                    ),
-                                  )
-                                : Text(
-                                    slot['status'],
-                                    style: const TextStyle(color: Colors.red),
-                                  ),
                           ),
                         );
                       }).toList(),
@@ -887,6 +805,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     _yearController.dispose();
     _semesterController.dispose();
     _rateController.dispose();
+    _accountNumberController.dispose();
     super.dispose();
   }
 }

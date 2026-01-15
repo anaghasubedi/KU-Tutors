@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
 import 'tutor_profile.dart';
 import 'login.dart';
 
@@ -33,7 +33,7 @@ class _TutorHomePageState extends State <TutorHomePage>{
        
       if (confirmed == true && mounted) {
         try{
-          await ApiService.logout();
+          await services.authService.logout();
           if (!mounted) return;
           Navigator.pushAndRemoveUntil(
             context,

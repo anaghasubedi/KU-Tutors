@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
 import 'reset_password_confirmation.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -45,7 +45,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.forgotPassword(_emailController.text.trim());
+      final response = await services.authService.forgotPassword(_emailController.text.trim());
 
       if (!mounted) return;
 

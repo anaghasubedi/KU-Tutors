@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/api_service.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
 import 'signup.dart';
 import 'forgot_password.dart';
 import 'tutor_home_page.dart';
@@ -54,7 +54,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.login(
+      final response = await services.authService.login(
         _emailController.text.trim(),
         _passwordController.text,
       );

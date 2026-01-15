@@ -1,13 +1,14 @@
-import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_kutuors/services/service_locator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+ // Import your ApiService
 
 class TuteeProfilePage extends StatefulWidget {
-  final bool
-  isPrivateView; // true: user editing own profile, false: public view
+  final bool isPrivateView; // true: user editing own profile, false: public view
   const TuteeProfilePage({super.key, this.isPrivateView = true});
 
   @override
@@ -17,7 +18,6 @@ class TuteeProfilePage extends StatefulWidget {
 class _TuteeProfilePageState extends State<TuteeProfilePage> {
   Uint8List? _imageBytes;
   bool _isLoading = true;
-  String? _token;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _kuEmailController = TextEditingController();
@@ -25,10 +25,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   final TextEditingController _departmentController = TextEditingController();
   final TextEditingController _yearController = TextEditingController();
   final TextEditingController _semesterController = TextEditingController();
-
-  // API Base URL - Update this to match your backend
-  static const String baseUrl =
-      'http://192.168.1.80:8000'; // Use 10.0.2.2 for Android emulator, localhost for iOS
 
   @override
   void initState() {
@@ -40,47 +36,61 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     setState(() => _isLoading = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _token = prefs.getString('auth_token');
+      final data = await services.profileService.getProfileData();
 
-      if (_token == null) {
-        throw Exception('No authentication token found');
-      }
+      setState(() {
+        _nameController.text = data['name'] ?? '';
+        _kuEmailController.text = data['email'] ?? '';
+        _phoneController.text = data['phone_number'] ?? '';
+        _departmentController.text = data['department'] ?? '';
+        _yearController.text = data['year'] ?? '';
+        _semesterController.text = data['semester'] ?? '';
+        _isLoading = false;
+      });
 
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/update-profile/'),
-        headers: {
-          'Authorization': 'Token $_token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        setState(() {
-          _nameController.text = data['name'] ?? '';
-          _kuEmailController.text = data['email'] ?? '';
-          _phoneController.text = data['phone_number'] ?? '';
-          _departmentController.text = data['department'] ?? '';
-          _yearController.text = data['year'] ?? '';
-          _semesterController.text = data['semester'] ?? '';
-          _isLoading = false;
-        });
-
-        // Load profile picture if available
-        // await _loadProfilePicture();
-      } else {
-        throw Exception('Failed to load profile');
-      }
+      // Load profile picture if available
+      await _loadProfilePicture();
     } catch (e) {
       debugPrint('Error loading profile: $e');
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load profile: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load profile: $e')),
+        );
       }
+    }
+  }
+
+  Future<void> _loadProfilePicture() async {
+    try {
+      final imageData = await services.profileService.getProfileImage();
+      
+      if (imageData != null) {
+        // Check if it's a URL or base64 string
+        if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
+          // It's a URL, fetch the image
+          final response = await http.get(Uri.parse(imageData));
+          if (response.statusCode == 200) {
+            setState(() {
+              _imageBytes = response.bodyBytes;
+            });
+          }
+        } else if (imageData.startsWith('data:image')) {
+          // It's a base64 data URL (e.g., "data:image/png;base64,...")
+          final base64String = imageData.split(',').last;
+          setState(() {
+            _imageBytes = base64Decode(base64String);
+          });
+        } else {
+          // It's a plain base64 string
+          setState(() {
+            _imageBytes = base64Decode(imageData);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading profile picture: $e');
+      // Don't show error to user, just log it
     }
   }
 
@@ -96,90 +106,58 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         });
 
         // Upload image to backend
-        await _uploadImage(pickedFile);
+        await _uploadImage(File(pickedFile.path));
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Failed to upload image')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to pick image')),
+        );
       }
     }
   }
 
-  Future<void> _uploadImage(XFile imageFile) async {
+  Future<void> _uploadImage(File imageFile) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/api/upload-image/'),
-      );
-
-      request.headers['Authorization'] = 'Token $token';
-      request.files.add(
-        await http.MultipartFile.fromPath('image', imageFile.path),
-      );
-
-      final response = await request.send();
-
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image uploaded successfully')),
-          );
-        }
-      } else {
-        throw Exception('Upload failed');
+      await services.profileService.uploadProfileImage(imageFile);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image uploaded successfully')),
+        );
       }
     } catch (e) {
       debugPrint('Error uploading image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to upload image: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload image: $e')),
+        );
       }
     }
   }
 
   Future<void> _saveProfile() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.patch(
-        Uri.parse('$baseUrl/api/update-profile/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'name': _nameController.text,
-          'phone_number': _phoneController.text,
-          'department': _departmentController.text,
-          'year': _yearController.text,
-          'semester': _semesterController.text,
-        }),
+      await services.profileService.updateProfileData(
+        name: _nameController.text,
+        phoneNumber: _phoneController.text,
+        department: _departmentController.text,
+        year: _yearController.text,
+        semester: _semesterController.text,
       );
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile saved successfully')),
-          );
-        }
-      } else {
-        final error = json.decode(response.body);
-        throw Exception(error['error'] ?? 'Failed to save profile');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile saved successfully')),
+        );
       }
     } catch (e) {
       debugPrint('Error saving profile: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to save profile: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save profile: $e')),
+        );
       }
     }
   }
@@ -210,38 +188,22 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     if (confirm != true) return;
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
+      await services.profileService.deleteAccount();
 
-      final response = await http.delete(
-        Uri.parse('$baseUrl/api/delete-account/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account deleted successfully')),
+        );
 
-      if (response.statusCode == 200) {
-        // Clear stored data
-        await prefs.clear();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Account deleted successfully')),
-          );
-
-          // Navigate to login page
-          Navigator.pushReplacementNamed(context, '/login');
-        }
-      } else {
-        throw Exception('Failed to delete account');
+        // Navigate to login page
+        Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       debugPrint('Error deleting account: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to delete account: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete account: $e')),
+        );
       }
     }
   }
@@ -321,20 +283,20 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                                   ],
                                 )
                               : widget.isPrivateView
-                              ? Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Colors.black.withValues(alpha: 0.3),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.edit,
-                                      color: Colors.white,
-                                      size: 30,
-                                    ),
-                                  ),
-                                )
-                              : null,
+                                  ? Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.black.withValues(alpha: 0.3),
+                                      ),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.edit,
+                                          color: Colors.white,
+                                          size: 30,
+                                        ),
+                                      ),
+                                    )
+                                  : null,
                         ),
                       ),
                       const SizedBox(height: 24),
