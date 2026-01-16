@@ -16,6 +16,7 @@ class TuteeProfilePage extends StatefulWidget {
 class _TuteeProfilePageState extends State<TuteeProfilePage> {
   Uint8List? _imageBytes;
   bool _isLoading = true;
+  bool _isOnline = true;
   String? _token;
 
   final TextEditingController _nameController = TextEditingController();
@@ -31,6 +32,58 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadOnlineStatus();
+  }
+
+  Future<void> _loadOnlineStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isOnline = prefs.getBool('is_online') ?? true;
+    });
+  }
+
+  Future<void> _toggleOnlineStatus() async {
+    final newStatus = !_isOnline;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      // Update status on backend
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/update-profile/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'is_online': newStatus,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _isOnline = newStatus;
+        });
+        await prefs.setBool('is_online', newStatus);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(newStatus ? 'You are now online' : 'You are now offline'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating online status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -61,12 +114,12 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
           _phoneController.text = data['phone_number'] ?? '';
           _semesterController.text = data['semester'] ?? '';
           _subjectRequiredController.text = data['subject_required'] ?? '';
+          _isOnline = data['is_online'] ?? true;
           _isLoading = false;
         });
 
-        // Load profile picture if available
-        // You'll need to add this endpoint to your backend
-        // await _loadProfilePicture();
+        // Save online status locally
+        await prefs.setBool('is_online', _isOnline);
       } else {
         throw Exception('Failed to load profile');
       }
@@ -253,29 +306,67 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
       );
     }
 
-return Scaffold(
-  backgroundColor: const Color(0xFF4A7AB8),
-  appBar: AppBar(
-    backgroundColor: const Color(0xFF4A7AB8),
-    elevation: 0,
-    automaticallyImplyLeading: false,
-    title: const Text(
-      'Tutee Profile',
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
+    return Scaffold(
+      backgroundColor: const Color(0xFF4A7AB8),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF4A7AB8),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: const Text(
+          'Tutee Profile',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          if (widget.isPrivateView)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: GestureDetector(
+                onTap: _toggleOnlineStatus,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isOnline ? Colors.green : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isOnline ? 'Online' : 'Offline',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
-    ),
-    centerTitle: true,
-  ),
-  body: SafeArea(
-    child: SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Container(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: const Color(0xFF8BA3C7),

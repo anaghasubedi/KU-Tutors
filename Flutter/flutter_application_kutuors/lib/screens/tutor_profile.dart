@@ -17,6 +17,7 @@ class TutorProfilePage extends StatefulWidget {
 class _TutorProfilePageState extends State<TutorProfilePage> {
   Uint8List? _imageBytes;
   bool _isLoading = true;
+  bool _isOnline = true;
   String? _token;
 
   // Data controllers
@@ -42,6 +43,58 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   void initState() {
     super.initState();
     _loadUserProfile();
+    _loadOnlineStatus();
+  }
+
+  Future<void> _loadOnlineStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isOnline = prefs.getBool('is_online') ?? true;
+    });
+  }
+
+  Future<void> _toggleOnlineStatus() async {
+    final newStatus = !_isOnline;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      // Update status on backend
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/update-profile/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'is_online': newStatus,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _isOnline = newStatus;
+        });
+        await prefs.setBool('is_online', newStatus);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(newStatus ? 'You are now online' : 'You are now offline'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating online status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -74,6 +127,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _semesterController.text = data['semester'] ?? '';
           _subjectCodeController.text = data['subject_code'] ?? '';
           _rateController.text = data['rate'] ?? '';
+          _isOnline = data['is_online'] ?? true;
           
           // Parse subjects from comma-separated string
           if (data['subject'] != null && data['subject'].isNotEmpty) {
@@ -83,8 +137,8 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _isLoading = false;
         });
 
-        // Load profile picture if available
-        // await _loadProfilePicture();
+        // Save online status locally
+        await prefs.setBool('is_online', _isOnline);
       } else {
         throw Exception('Failed to load profile');
       }
@@ -278,19 +332,57 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     return Scaffold(
       backgroundColor: const Color(0xFF4A7AB8),
       appBar: AppBar(
-  backgroundColor: const Color(0xFF4A7AB8),
-  elevation: 0,
-  automaticallyImplyLeading: false,
-  title: Text(
-    widget.isOwner ? "My Profile" : "Tutor Profile",
-    style: const TextStyle(
-      fontSize: 20,
-      fontWeight: FontWeight.bold,
-      color: Colors.white,
-    ),
-  ),
-  centerTitle: true,
-),
+        backgroundColor: const Color(0xFF4A7AB8),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Text(
+          widget.isOwner ? "My Profile" : "Tutor Profile",
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          if (widget.isOwner)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: GestureDetector(
+                onTap: _toggleOnlineStatus,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isOnline ? Colors.green : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isOnline ? 'Online' : 'Offline',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
