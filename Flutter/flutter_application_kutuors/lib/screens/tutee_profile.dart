@@ -5,10 +5,9 @@ import 'package:flutter_application_kutuors/services/service_locator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
- // Import your ApiService
 
 class TuteeProfilePage extends StatefulWidget {
-  final bool isPrivateView; // true: user editing own profile, false: public view
+  final bool isPrivateView;
   const TuteeProfilePage({super.key, this.isPrivateView = true});
 
   @override
@@ -22,9 +21,15 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _kuEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _departmentController = TextEditingController();
-  final TextEditingController _yearController = TextEditingController();
-  final TextEditingController _semesterController = TextEditingController();
+  
+  // Changed to dropdown values
+  String? _selectedDepartment;
+  String? _selectedYear;
+  String? _selectedSemester;
+
+  final List<String> _departments = ['CS', 'CE'];
+  final List<String> _years = ['1', '2', '3', '4'];
+  final List<String> _semesters = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
   @override
   void initState() {
@@ -42,13 +47,15 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         _nameController.text = data['name'] ?? '';
         _kuEmailController.text = data['email'] ?? '';
         _phoneController.text = data['phone_number'] ?? '';
-        _departmentController.text = data['department'] ?? '';
-        _yearController.text = data['year'] ?? '';
-        _semesterController.text = data['semester'] ?? '';
+        
+        // Set dropdown values
+        _selectedDepartment = data['department'];
+        _selectedYear = data['year'];
+        _selectedSemester = data['semester'];
+        
         _isLoading = false;
       });
 
-      // Load profile picture if available
       await _loadProfilePicture();
     } catch (e) {
       debugPrint('Error loading profile: $e');
@@ -66,9 +73,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
       final imageData = await services.profileService.getProfileImage();
       
       if (imageData != null) {
-        // Check if it's a URL or base64 string
         if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
-          // It's a URL, fetch the image
           final response = await http.get(Uri.parse(imageData));
           if (response.statusCode == 200) {
             setState(() {
@@ -76,13 +81,11 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
             });
           }
         } else if (imageData.startsWith('data:image')) {
-          // It's a base64 data URL (e.g., "data:image/png;base64,...")
           final base64String = imageData.split(',').last;
           setState(() {
             _imageBytes = base64Decode(base64String);
           });
         } else {
-          // It's a plain base64 string
           setState(() {
             _imageBytes = base64Decode(imageData);
           });
@@ -90,7 +93,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
       }
     } catch (e) {
       debugPrint('Error loading profile picture: $e');
-      // Don't show error to user, just log it
     }
   }
 
@@ -105,7 +107,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
           _imageBytes = bytes;
         });
 
-        // Upload image to backend
         await _uploadImage(File(pickedFile.path));
       }
     } catch (e) {
@@ -142,9 +143,9 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
       await services.profileService.updateProfileData(
         name: _nameController.text,
         phoneNumber: _phoneController.text,
-        department: _departmentController.text,
-        year: _yearController.text,
-        semester: _semesterController.text,
+        department: _selectedDepartment ?? '',
+        year: _selectedYear ?? '',
+        semester: _selectedSemester ?? '',
       );
 
       if (mounted) {
@@ -163,7 +164,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   }
 
   Future<void> _deleteAccount() async {
-    // Show confirmation dialog
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -195,7 +195,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
           const SnackBar(content: Text('Account deleted successfully')),
         );
 
-        // Navigate to login page
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
@@ -311,15 +310,32 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                       const SizedBox(height: 22),
                       _buildEditableField('Phone no', _phoneController),
                       const SizedBox(height: 12),
-                      _buildEditableField('Department', _departmentController),
+                      
+                      // Department Dropdown
+                      _buildDropdownField('Department', _selectedDepartment, _departments, (value) {
+                        setState(() {
+                          _selectedDepartment = value;
+                        });
+                      }),
                       const SizedBox(height: 12),
-                      _buildEditableField('Year', _yearController),
+                      
+                      // Year Dropdown
+                      _buildDropdownField('Year', _selectedYear, _years, (value) {
+                        setState(() {
+                          _selectedYear = value;
+                        });
+                      }),
                       const SizedBox(height: 12),
-                      _buildEditableField('Semester', _semesterController),
+                      
+                      // Semester Dropdown
+                      _buildDropdownField('Semester', _selectedSemester, _semesters, (value) {
+                        setState(() {
+                          _selectedSemester = value;
+                        });
+                      }),
                       const SizedBox(height: 32),
 
                       if (widget.isPrivateView) ...[
-                        // Save Button
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -344,7 +360,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Delete Account Button
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -435,14 +450,76 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     );
   }
 
+  Widget _buildDropdownField(
+    String label,
+    String? selectedValue,
+    List<String> options,
+    ValueChanged<String?> onChanged,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(
+            '$label :',
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: widget.isPrivateView
+              ? DropdownButtonFormField<String>(
+                  value: selectedValue,
+                  dropdownColor: const Color(0xFF8BA3C7),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    border: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                  icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                  items: options.map((String value) {
+                    return DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(value),
+                    );
+                  }).toList(),
+                  onChanged: onChanged,
+                )
+              : Text(
+                  selectedValue ?? '',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
     _kuEmailController.dispose();
     _phoneController.dispose();
-    _departmentController.dispose();
-    _yearController.dispose();
-    _semesterController.dispose();
     super.dispose();
   }
 }
