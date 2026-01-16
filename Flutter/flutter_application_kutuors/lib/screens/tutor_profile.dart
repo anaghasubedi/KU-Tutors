@@ -24,11 +24,17 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   final TextEditingController _kuEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
-  final TextEditingController _departmentController = TextEditingController();
-  final TextEditingController _yearController = TextEditingController();
-  final TextEditingController _semesterController = TextEditingController();
   final TextEditingController _rateController = TextEditingController();
   final TextEditingController _accountNumberController = TextEditingController();
+
+  // Dropdown values
+  String? _selectedDepartment;
+  String? _selectedYear;
+  String? _selectedSemester;
+
+  final List<String> _departments = ['CS', 'CE'];
+  final List<String> _years = ['1', '2', '3', '4'];
+  final List<String> _semesters = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
   List<String> _subjects = [];
   List<Map<String, dynamic>> _availability = [];
@@ -53,9 +59,9 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _kuEmailController.text = data['email'] ?? '';
           _phoneController.text = data['phone_number'] ?? '';
           _subjectController.text = data['subject'] ?? '';
-          _departmentController.text = data['department'] ?? '';
-          _semesterController.text = data['semester'] ?? '';
-          _yearController.text = data['year'] ?? '';
+          _selectedDepartment = data['department'];
+          _selectedSemester = data['semester'];
+          _selectedYear = data['year'];
           _rateController.text = data['rate'] ?? '';
           _accountNumberController.text = data['account_number'] ?? '';
         });
@@ -67,7 +73,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _kuEmailController.text = user['email'] ?? '';
           _phoneController.text = user['contact'] ?? '';
           _subjectController.text = data['subject'] ?? '';
-          _departmentController.text = data['department'] ?? '';
+          _selectedDepartment = data['department'];
           _rateController.text = data['rate'] ?? '';
           _accountNumberController.text = data['account_number'] ?? '';
         });
@@ -426,9 +432,9 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
         name: _nameController.text,
         phoneNumber: _phoneController.text,
         subject: _subjectController.text,
-        department: _departmentController.text,
-        year: _yearController.text,
-        semester: _semesterController.text,
+        department: _selectedDepartment ?? '',
+        year: _selectedYear ?? '',
+        semester: _selectedSemester ?? '',
         rate: _rateController.text,
         accountNumber: _accountNumberController.text,
       );
@@ -551,16 +557,22 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                     const SizedBox(height: 12),
                     _buildEditableField("Subject", _subjectController),
                     const SizedBox(height: 12),
-                    _buildEditableField("Department", _departmentController),
+                    _buildDropdownField("Department", _selectedDepartment, _departments, (value) {
+                      setState(() => _selectedDepartment = value);
+                    }),
                     const SizedBox(height: 12),
-                    _buildEditableField("Year", _yearController),
+                    _buildDropdownField("Year", _selectedYear, _years, (value) {
+                      setState(() => _selectedYear = value);
+                    }),
                     const SizedBox(height: 12),
-                    _buildEditableField("Semester", _semesterController),
+                    _buildDropdownField("Semester", _selectedSemester, _semesters, (value) {
+                      setState(() => _selectedSemester = value);
+                    }),
                     const SizedBox(height: 12),
                     _buildEditableField("Rate", _rateController),
-                    const SizedBox(height: 24),
-                    _buildEditableField("Account Number", _accountNumberController),
                     const SizedBox(height: 12),
+                    _buildEditableField("Account Number", _accountNumberController),
+                    const SizedBox(height: 24),
 
                     if (widget.isOwner)
                       SizedBox(
@@ -795,15 +807,71 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     );
   }
 
+  Widget _buildDropdownField(
+    String label,
+    String? value,
+    List<String> items,
+    void Function(String?) onChanged,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            "$label :",
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        Expanded(
+          child: widget.isOwner
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.white, width: 1),
+                    ),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: value,
+                      hint: Text(
+                        'Select $label',
+                        style: const TextStyle(color: Colors.white70),
+                      ),
+                      isExpanded: true,
+                      dropdownColor: const Color(0xFF4A7AB8),
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                      items: items.map((String item) {
+                        return DropdownMenuItem<String>(
+                          value: item,
+                          child: Text(item),
+                        );
+                      }).toList(),
+                      onChanged: onChanged,
+                    ),
+                  ),
+                )
+              : Text(
+                  value ?? '',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
     _kuEmailController.dispose();
     _phoneController.dispose();
     _subjectController.dispose();
-    _departmentController.dispose();
-    _yearController.dispose();
-    _semesterController.dispose();
     _rateController.dispose();
     _accountNumberController.dispose();
     super.dispose();
