@@ -119,9 +119,9 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   
   // Get available subjects based on selected department
   Map<String, String> get _availableSubjects {
-    if (_selectedDepartment == 'Computer Science') {
+    if (_selectedDepartment == 'CS') {
       return _computerScienceSubjects;
-    } else if (_selectedDepartment == 'Computer Engineering') {
+    } else if (_selectedDepartment == 'CE') {
       return _computerEngineeringSubjects;
     }
     return {};
