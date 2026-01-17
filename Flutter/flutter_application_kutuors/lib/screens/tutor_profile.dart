@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_application_kutuors/services/service_locator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
@@ -19,6 +20,7 @@ class TutorProfilePage extends StatefulWidget {
 class _TutorProfilePageState extends State<TutorProfilePage> {
   Uint8List? _imageBytes;
   bool _isLoading = true;
+  bool _isOnline = true;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _kuEmailController = TextEditingController();
@@ -44,6 +46,57 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     super.initState();
     _loadUserProfile();
     _loadAvailability();
+    _loadOnlineStatus();
+  }
+
+  Future<void> _loadOnlineStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isOnline = prefs.getBool('is_online') ?? true;
+    });
+  }
+
+  Future<void> _toggleOnlineStatus() async {
+    final newStatus = !_isOnline;
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.patch(
+        Uri.parse('${services.baseUrl}/api/update-profile/'),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'is_online': newStatus,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _isOnline = newStatus;
+        });
+        await prefs.setBool('is_online', newStatus);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(newStatus ? 'You are now online' : 'You are now offline'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating online status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update status: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _loadUserProfile() async {
@@ -64,6 +117,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _selectedYear = data['year'];
           _rateController.text = data['rate'] ?? '';
           _accountNumberController.text = data['account_number'] ?? '';
+          _isOnline = data['is_online'] ?? true;
         });
       } else if (widget.tutorId != null) {
         data = await services.tutorService.getTutorProfile(widget.tutorId!);
@@ -76,6 +130,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           _selectedDepartment = data['department'];
           _rateController.text = data['rate'] ?? '';
           _accountNumberController.text = data['account_number'] ?? '';
+          _isOnline = data['is_online'] ?? true;
         });
       } else {
         throw Exception('No tutor ID provided for public view');
@@ -86,6 +141,9 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
       }
 
       setState(() => _isLoading = false);
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_online', _isOnline);
       
       // Load profile picture if available
       await _loadProfilePicture();
@@ -105,9 +163,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
       final imageData = await services.profileService.getProfileImage();
       
       if (imageData != null) {
-        // Check if it's a URL or base64 string
         if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
-          // It's a URL, fetch the image
           final response = await http.get(Uri.parse(imageData));
           if (response.statusCode == 200) {
             setState(() {
@@ -115,13 +171,11 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
             });
           }
         } else if (imageData.startsWith('data:image')) {
-          // It's a base64 data URL
           final base64String = imageData.split(',').last;
           setState(() {
             _imageBytes = base64Decode(base64String);
           });
         } else {
-          // It's a plain base64 string
           setState(() {
             _imageBytes = base64Decode(imageData);
           });
@@ -257,7 +311,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
         endTime: endTimeStr,
       );
 
-      // Successfully added - reload availability
       await _loadAvailability();
       
       if (mounted) {
@@ -284,8 +337,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   Future<void> _deleteAvailability(int id) async {
     try {
       await services.availabilityService.deleteAvailability(id);
-      
-      // Successfully deleted - reload availability
       await _loadAvailability();
       
       if (mounted) {
@@ -316,7 +367,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
         status: newStatus,
       );
       
-      // Successfully updated - reload availability
       await _loadAvailability();
       
       if (mounted) {
@@ -479,13 +529,54 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          if (widget.isOwner)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: GestureDetector(
+                onTap: _toggleOnlineStatus,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _isOnline ? Colors.green : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isOnline ? 'Online' : 'Offline',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Tutor Info Card
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -494,7 +585,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                 ),
                 child: Column(
                   children: [
-                    // Profile Picture
                     GestureDetector(
                       onTap: widget.isOwner ? _pickImage : null,
                       child: Container(
@@ -534,7 +624,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                 ? Container(
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.black.withValues(alpha: 0.3),
+                                      color: Colors.black.withOpacity(0.3),
                                     ),
                                     child: const Center(
                                       child: Icon(
@@ -596,7 +686,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
 
               const SizedBox(height: 20),
 
-              // Subjects Section
               if (_subjects.isNotEmpty) ...[
                 const Align(
                   alignment: Alignment.centerLeft,
@@ -627,7 +716,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                 const SizedBox(height: 20),
               ],
 
-              // Dynamic Availability Section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -737,7 +825,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
 
               const SizedBox(height: 24),
 
-              // Delete Account Button
               if (widget.isOwner) ...[
                 SizedBox(
                   width: double.infinity,
@@ -831,7 +918,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
           child: widget.isOwner
               ? Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     border: Border(
                       bottom: BorderSide(color: Colors.white, width: 1),
                     ),
