@@ -473,7 +473,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         Expanded(
           child: widget.isPrivateView
               ? DropdownButtonFormField<String>(
-                  value: selectedValue,
+                  initialValue: selectedValue,
                   dropdownColor: const Color(0xFF8BA3C7),
                   style: const TextStyle(
                     fontSize: 16,
