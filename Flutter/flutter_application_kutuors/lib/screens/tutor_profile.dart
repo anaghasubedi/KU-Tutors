@@ -29,7 +29,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   final TextEditingController _rateController = TextEditingController();
   final TextEditingController _accountNumberController = TextEditingController();
 
-  // Dropdown values
   String? _selectedDepartment;
   String? _selectedYear;
   String? _selectedSemester;
@@ -60,34 +59,31 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     final newStatus = !_isOnline;
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.patch(
-        Uri.parse('${services.baseUrl}/api/update-profile/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'is_online': newStatus,
-        }),
+      // Use the profile service to update online status
+      await services.profileService.updateProfileData(
+        name: _nameController.text,
+        phoneNumber: _phoneController.text,
+        subject: _subjectController.text,
+        department: _selectedDepartment ?? '',
+        year: _selectedYear ?? '',
+        semester: _selectedSemester ?? '',
+        rate: _rateController.text,
+        accountNumber: _accountNumberController.text,
       );
 
-      if (response.statusCode == 200) {
-        setState(() {
-          _isOnline = newStatus;
-        });
-        await prefs.setBool('is_online', newStatus);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(newStatus ? 'You are now online' : 'You are now offline'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _isOnline = newStatus;
+      });
+      await prefs.setBool('is_online', newStatus);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newStatus ? 'You are now online' : 'You are now offline'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error updating online status: $e');
@@ -145,7 +141,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('is_online', _isOnline);
       
-      // Load profile picture if available
       await _loadProfilePicture();
     } catch (e) {
       debugPrint('Error loading profile: $e');
@@ -538,10 +533,10 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha:0.2),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha:0.3),
                       width: 1,
                     ),
                   ),
@@ -624,7 +619,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                 ? Container(
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.black.withOpacity(0.3),
+                                      color: Colors.black.withValues(alpha:0.3),
                                     ),
                                     child: const Center(
                                       child: Icon(

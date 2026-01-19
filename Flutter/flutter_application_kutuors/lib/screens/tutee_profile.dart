@@ -24,7 +24,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   final TextEditingController _kuEmailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   
-  // Changed to dropdown values
   String? _selectedDepartment;
   String? _selectedYear;
   String? _selectedSemester;
@@ -51,34 +50,28 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     final newStatus = !_isOnline;
     
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('auth_token');
-
-      final response = await http.patch(
-        Uri.parse('${services.baseUrl}/api/update-profile/'),
-        headers: {
-          'Authorization': 'Token $token',
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'is_online': newStatus,
-        }),
+      // Use the profile service to update
+      await services.profileService.updateProfileData(
+        name: _nameController.text,
+        phoneNumber: _phoneController.text,
+        department: _selectedDepartment ?? '',
+        year: _selectedYear ?? '',
+        semester: _selectedSemester ?? '',
       );
 
-      if (response.statusCode == 200) {
-        setState(() {
-          _isOnline = newStatus;
-        });
-        await prefs.setBool('is_online', newStatus);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(newStatus ? 'You are now online' : 'You are now offline'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _isOnline = newStatus;
+      });
+      await prefs.setBool('is_online', newStatus);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newStatus ? 'You are now online' : 'You are now offline'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       debugPrint('Error updating online status: $e');
@@ -101,7 +94,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         _kuEmailController.text = data['email'] ?? '';
         _phoneController.text = data['phone_number'] ?? '';
         
-        // Set dropdown values
         _selectedDepartment = data['department'];
         _selectedYear = data['year'];
         _selectedSemester = data['semester'];
@@ -297,10 +289,10 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha:0.2),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
+                      color: Colors.white.withValues(alpha:0.3),
                       width: 1,
                     ),
                   ),
@@ -384,7 +376,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                                   ? Container(
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: Colors.black.withOpacity(0.3),
+                                        color: Colors.black.withValues(alpha:0.3),
                                       ),
                                       child: const Center(
                                         child: Icon(
@@ -410,7 +402,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                       _buildEditableField('Phone no', _phoneController),
                       const SizedBox(height: 12),
                       
-                      // Department Dropdown
                       _buildDropdownField('Department', _selectedDepartment, _departments, (value) {
                         setState(() {
                           _selectedDepartment = value;
@@ -418,7 +409,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                       }),
                       const SizedBox(height: 12),
                       
-                      // Year Dropdown
                       _buildDropdownField('Year', _selectedYear, _years, (value) {
                         setState(() {
                           _selectedYear = value;
@@ -426,7 +416,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                       }),
                       const SizedBox(height: 12),
                       
-                      // Semester Dropdown
                       _buildDropdownField('Semester', _selectedSemester, _semesters, (value) {
                         setState(() {
                           _selectedSemester = value;
@@ -572,7 +561,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         Expanded(
           child: widget.isPrivateView
               ? DropdownButtonFormField<String>(
-                  value: selectedValue,
+                  initialValue: selectedValue,
                   dropdownColor: const Color(0xFF8BA3C7),
                   style: const TextStyle(
                     fontSize: 16,
