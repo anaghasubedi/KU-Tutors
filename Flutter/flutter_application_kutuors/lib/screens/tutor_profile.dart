@@ -418,29 +418,27 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     }
   }
 
-  Future<void> _updateAvailabilityStatus(int id, String newStatus) async {
+  Future<void> _bookDemoSession(int availabilityId) async {
     try {
-      await services.availabilityService.updateAvailabilityStatus(
-        availabilityId: id,
-        status: newStatus,
-      );
-      
-      await _loadAvailability();
+      await services.tuteeService.bookDemoSession(availabilityId);
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Status updated to $newStatus'),
-            backgroundColor: Colors.blue,
+          const SnackBar(
+            content: Text('Demo session booked successfully!'),
+            backgroundColor: Colors.green,
           ),
         );
       }
+      
+      // Reload availability to show updated status
+      await _loadAvailability();
     } catch (e) {
-      debugPrint('Error updating availability: $e');
+      debugPrint('Error booking demo session: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update status: $e'),
+            content: Text('Failed to book session: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -818,7 +816,9 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                     )
                   : Column(
                       children: _availability.map((slot) {
-                        final isAvailable = slot['status'] == 'Available';
+                        final status = slot['status'] ?? 'Available';
+                        final isAvailable = status == 'Available';
+                        final isBooked = status == 'Booked';
                         final dayName = slot['day_name'] ?? '';
                         final formattedDate = slot['formatted_date'] ?? slot['date'];
 
@@ -831,29 +831,43 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                 ? Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      DropdownButton<String>(
-                                        value: slot['status'],
-                                        items: const [
-                                          DropdownMenuItem(
-                                            value: 'Available',
-                                            child: Text('Available'),
+                                      // Status badge (display only)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isAvailable 
+                                              ? Colors.green.withValues(alpha: 0.2)
+                                              : isBooked
+                                                  ? Colors.blue.withValues(alpha: 0.2)
+                                                  : Colors.red.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isAvailable 
+                                                ? Colors.green
+                                                : isBooked
+                                                    ? Colors.blue
+                                                    : Colors.red,
+                                            width: 1,
                                           ),
-                                          DropdownMenuItem(
-                                            value: 'Booked',
-                                            child: Text('Booked'),
+                                        ),
+                                        child: Text(
+                                          status,
+                                          style: TextStyle(
+                                            color: isAvailable 
+                                                ? Colors.green
+                                                : isBooked
+                                                    ? Colors.blue
+                                                    : Colors.red,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
                                           ),
-                                          DropdownMenuItem(
-                                            value: 'Unavailable',
-                                            child: Text('Unavailable'),
-                                          ),
-                                        ],
-                                        onChanged: (value) {
-                                          if (value != null) {
-                                            _updateAvailabilityStatus(slot['id'], value);
-                                          }
-                                        },
-                                        underline: Container(),
+                                        ),
                                       ),
+                                      const SizedBox(width: 8),
+                                      // Delete button
                                       IconButton(
                                         icon: const Icon(Icons.delete, color: Colors.red),
                                         onPressed: () => _deleteAvailability(slot['id']),
@@ -862,26 +876,45 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                   )
                                 : isAvailable
                                     ? ElevatedButton(
-                                        onPressed: () {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text("Booked demo on ${slot['day']}"),
-                                            ),
-                                          );
-                                        },
+                                        onPressed: () => _bookDemoSession(slot['id']),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(0xFF4A7AB8),
+                                          foregroundColor: Colors.white,
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 8,
+                                            horizontal: 20,
+                                            vertical: 10,
                                           ),
                                         ),
-                                        child: const Text("Book Demo", style: TextStyle(fontSize: 14)),
+                                        child: const Text(
+                                          "Book",
+                                          style: TextStyle(fontSize: 14),
+                                        ),
                                       )
-                                    : Text(
-                                        slot['status'],
-                                        style: const TextStyle(color: Colors.red),
-                                      ),
+                                    : isBooked
+                                        ? Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF4A7AB8).withValues(alpha: 0.5),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Text(
+                                              "Booked",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          )
+                                        : Text(
+                                            status,
+                                            style: const TextStyle(
+                                              color: Colors.red,
+                                              fontSize: 14,
+                                            ),
+                                          ),
                           ),
                         );
                       }).toList(),
