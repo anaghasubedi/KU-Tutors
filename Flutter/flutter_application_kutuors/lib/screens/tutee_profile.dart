@@ -94,7 +94,18 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         _kuEmailController.text = data['email'] ?? '';
         _phoneController.text = data['phone_number'] ?? '';
         
-        _selectedDepartment = data['department'];
+        // Normalize department values - convert full names to abbreviations
+        String? department = data['department'];
+        if (department != null) {
+          if (department.toLowerCase().contains('computer science')) {
+            _selectedDepartment = 'CS';
+          } else if (department.toLowerCase().contains('computer engineering')) {
+            _selectedDepartment = 'CE';
+          } else {
+            _selectedDepartment = department;
+          }
+        }
+        
         _selectedYear = data['year'];
         _selectedSemester = data['semester'];
         _isOnline = data['is_online'] ?? true;
@@ -544,6 +555,12 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     List<String> options,
     ValueChanged<String?> onChanged,
   ) {
+    // Ensure selectedValue is in the options list, otherwise set to null
+    String? validValue = selectedValue;
+    if (selectedValue != null && !options.contains(selectedValue)) {
+      validValue = null;
+    }
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -561,7 +578,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         Expanded(
           child: widget.isPrivateView
               ? DropdownButtonFormField<String>(
-                  initialValue: selectedValue,
+                  value: validValue,
                   dropdownColor: const Color(0xFF8BA3C7),
                   style: const TextStyle(
                     fontSize: 16,
@@ -591,7 +608,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                   onChanged: onChanged,
                 )
               : Text(
-                  selectedValue ?? '',
+                  _getDisplayValue(label, selectedValue),
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.white,
@@ -601,6 +618,15 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         ),
       ],
     );
+  }
+  
+  String _getDisplayValue(String label, String? value) {
+    if (value == null) return '';
+    if (label == 'Department') {
+      if (value == 'CS') return 'Computer Science';
+      if (value == 'CE') return 'Computer Engineering';
+    }
+    return value;
   }
 
   @override

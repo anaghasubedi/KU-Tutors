@@ -942,3 +942,110 @@ def add_tutee_subjects(request):
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def demo_sessions(request):
+    """Get available demo sessions for tutees"""
+    try:
+        # Return empty list for now - implement your logic later
+        return Response({
+            'demo_sessions': []
+        })
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def booked_classes(request):
+    """Get booked classes for the logged-in tutee"""
+    try:
+        # Return empty list for now - implement your logic later
+        return Response({
+            'booked_classes': []
+        })
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def book_demo_session(request):
+    """Book a demo session"""
+    try:
+        session_id = request.data.get('session_id')
+        
+        if not session_id:
+            return Response(
+                {'error': 'session_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # TODO: Implement booking logic
+        
+        return Response({
+            'message': 'Demo session booked successfully'
+        }, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def cancel_booking(request, booking_id):
+    """Cancel a booking"""
+    try:
+        # TODO: Implement cancellation logic
+        
+        return Response({
+            'message': 'Booking cancelled successfully'
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_tutor_availability_by_id(request, tutor_id):
+    """Get availability for a specific tutor by their ID"""
+    try:
+        # Get the tutor profile
+        tutor_profile = TutorProfile.objects.get(id=tutor_id)
+        
+        # Get all availability slots for this tutor
+        availability_slots = Availability.objects.filter(
+            tutor_profile=tutor_profile
+        ).order_by('date', 'start_time')
+        
+        # Serialize the availability data
+        availability_data = []
+        for slot in availability_slots:
+            availability_data.append({
+                'id': slot.id,
+                'date': slot.date.strftime('%Y-%m-%d'),
+                'start_time': slot.start_time.strftime('%H:%M'),
+                'end_time': slot.end_time.strftime('%H:%M'),
+                'is_booked': slot.is_booked,
+            })
+        
+        return Response({
+            'availability': availability_data
+        })
+    except TutorProfile.DoesNotExist:
+        return Response(
+            {'error': 'Tutor not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

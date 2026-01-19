@@ -117,15 +117,60 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
         });
       } else if (widget.tutorId != null) {
         data = await services.tutorService.getTutorProfile(widget.tutorId!);
+        
+        // Debug print to see the actual structure
+        debugPrint('Tutor profile data: $data');
+        debugPrint('User data: ${data['user']}');
+        
+        // Handle user data
         final user = data['user'];
+        
         setState(() {
-          _nameController.text = '${user['first_name'] ?? ''} ${user['last_name'] ?? ''}'.trim();
-          _kuEmailController.text = user['email'] ?? '';
-          _phoneController.text = user['contact'] ?? '';
-          _subjectController.text = data['subject'] ?? '';
-          _selectedDepartment = data['department'];
-          _rateController.text = data['rate'] ?? '';
-          _accountNumberController.text = data['account_number'] ?? '';
+          // Name handling
+          if (user != null) {
+            final firstName = user['first_name'] ?? '';
+            final lastName = user['last_name'] ?? '';
+            final fullName = '$firstName $lastName'.trim();
+            debugPrint('Setting name to: $fullName');
+            _nameController.text = fullName;
+            _kuEmailController.text = user['email'] ?? '';
+            _phoneController.text = user['contact'] ?? '';
+          } else {
+            debugPrint('User data is null!');
+          }
+          
+          // Profile fields - use exact field names from TutorProfile model
+          final subject = data['subject'];
+          _subjectController.text = (subject == null || subject == 'null' || subject == 'Not Specified') ? '' : subject.toString();
+          
+          final dept = data['department'];
+          if (dept != null && dept != 'null') {
+            _selectedDepartment = dept.toString();
+          } else {
+            _selectedDepartment = null;
+          }
+          
+          final year = data['year'];
+          if (year != null && year != 'null' && year != 'Unknown') {
+            _selectedYear = year.toString();
+          } else {
+            _selectedYear = null;
+          }
+          
+          final sem = data['semester'];
+          if (sem != null && sem != 'null' && sem != 'Unknown') {
+            _selectedSemester = sem.toString();
+          } else {
+            _selectedSemester = null;
+          }
+          
+          // Use the actual rate and account_number fields
+          final rate = data['rate'];
+          _rateController.text = (rate == null || rate == 'null' || rate == 'Not Provided') ? '' : rate.toString();
+          
+          final accNum = data['account_number'];
+          _accountNumberController.text = (accNum == null || accNum == 'null' || accNum == 'Not Provided') ? '' : accNum.toString();
+          
           _isOnline = data['is_online'] ?? true;
         });
       } else {
@@ -155,29 +200,47 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
 
   Future<void> _loadProfilePicture() async {
     try {
-      final imageData = await services.profileService.getProfileImage();
-      
-      if (imageData != null) {
-        if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
-          final response = await http.get(Uri.parse(imageData));
-          if (response.statusCode == 200) {
-            setState(() {
-              _imageBytes = response.bodyBytes;
-            });
+      if (widget.isOwner) {
+        final imageData = await services.profileService.getProfileImage();
+        if (imageData != null && imageData.isNotEmpty && imageData != 'null') {
+          _processImageData(imageData);
+        }
+      } else if (widget.tutorId != null) {
+        final data = await services.tutorService.getTutorProfile(widget.tutorId!);
+        final profilePicUrl = data['profile_picture_url'];
+        if (profilePicUrl != null) {
+          final imageDataString = profilePicUrl.toString();
+          if (imageDataString.isNotEmpty && imageDataString != 'null') {
+            _processImageData(imageDataString);
           }
-        } else if (imageData.startsWith('data:image')) {
-          final base64String = imageData.split(',').last;
-          setState(() {
-            _imageBytes = base64Decode(base64String);
-          });
-        } else {
-          setState(() {
-            _imageBytes = base64Decode(imageData);
-          });
         }
       }
     } catch (e) {
       debugPrint('Error loading profile picture: $e');
+    }
+  }
+  
+  Future<void> _processImageData(String imageData) async {
+    try {
+      if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
+        final response = await http.get(Uri.parse(imageData));
+        if (response.statusCode == 200) {
+          setState(() {
+            _imageBytes = response.bodyBytes;
+          });
+        }
+      } else if (imageData.startsWith('data:image')) {
+        final base64String = imageData.split(',').last;
+        setState(() {
+          _imageBytes = base64Decode(base64String);
+        });
+      } else {
+        setState(() {
+          _imageBytes = base64Decode(imageData);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error processing image data: $e');
     }
   }
 
@@ -514,7 +577,13 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF4A7AB8),
         elevation: 0,
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: !widget.isOwner,
+        leading: !widget.isOwner 
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: Text(
           widget.isOwner ? "My Profile" : "Tutor Profile",
           style: const TextStyle(

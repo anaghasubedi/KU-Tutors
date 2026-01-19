@@ -62,7 +62,8 @@ class TutorProfile(models.Model):
     semester = models.CharField(max_length=20, default="Unknown")
     department = models.CharField(max_length=50, choices=DEPARTMENT_CHOICES, default="Computer Science")
     available = models.BooleanField(default=True)
-    accountnumber = models.CharField(max_length=20, default="Not Provided")
+    rate = models.CharField(max_length=20, default="Not Provided")  # Hourly rate
+    account_number = models.CharField(max_length=20, default="Not Provided") 
     profile_picture = models.ImageField(upload_to='tutor_profiles/pictures/', null=True, blank=True)
     
     def __str__(self):

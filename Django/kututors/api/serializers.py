@@ -91,8 +91,8 @@ class TutorProfileSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = TutorProfile
-        fields = ['id', 'user', 'subject', 'semester', 'subjectcode', 'department', 'available', 
-                  'accountnumber', 'profile_picture_url', 'is_online']
+        fields = ['id', 'user', 'subject', 'semester', 'department', 'available', 
+                  'account_number', 'rate', 'year', 'account_number','profile_picture_url', 'is_online']
     
     def get_profile_picture_url(self, obj):
         if obj.profile_picture:

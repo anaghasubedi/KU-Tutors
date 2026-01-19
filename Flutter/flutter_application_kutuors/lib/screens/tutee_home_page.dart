@@ -29,7 +29,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   String? _selectedSubject;
 
   // Subject data for Computer Science
-  final Map<String, String> _computerScienceSubjects = {
+  final Map<String, String> _csSubjects = {
     'MATH 101': 'Calculus and Linear Algebra',
     'PHYS 101': 'General Physics I',
     'COMP 102': 'Computer Programming',
@@ -73,7 +73,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   };
   
   // Subject data for Computer Engineering
-  final Map<String, String> _computerEngineeringSubjects = {
+  final Map<String, String> _ceSubjects = {
     'MATH 101': 'Calculus and Linear Algebra',
     'PHYS 101': 'General Physics I',
     'COMP 102': 'Computer Programming',
@@ -120,11 +120,12 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   // Get available subjects based on selected department
   Map<String, String> get _availableSubjects {
     if (_selectedDepartment == 'CS') {
-      return _computerScienceSubjects;
+      return _csSubjects;
     } else if (_selectedDepartment == 'CE') {
-      return _computerEngineeringSubjects;
+      return _csSubjects;
     }
-    return {};
+    // When "All Departments" is selected, combine both subject lists
+    return {..._csSubjects, ..._ceSubjects};
   }
 
   @override
@@ -146,10 +147,17 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     setState(() => _isLoadingTutors = true);
     
     try {
-      final data = await services.tutorService.listTutors();
+      final data = await services.tutorService.listTutors(
+        search: null,
+        department: null,
+        subject: null,
+      );
+      
+      debugPrint('API Response: $data');
+      debugPrint('Tutors count: ${data['tutors']?.length ?? 0}');
       
       setState(() {
-        _tutors = List<Map<String, dynamic>>.from(data['tutors']);
+        _tutors = List<Map<String, dynamic>>.from(data['tutors'] ?? []);
         _filteredTutors = _tutors;
         _isLoadingTutors = false;
       });
@@ -266,30 +274,39 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
         final fullName = '$userName $lastName'.toLowerCase();
         final subject = tutor['subject']?.toLowerCase() ?? '';
         final department = tutor['department']?.toLowerCase() ?? '';
-        final subjectCode = tutor['subject_code']?.toLowerCase() ?? '';
         
-        // Search filter - search in name, subject, department, and subject code
+        // Search filter - search in name, subject, and department
         final matchesSearch = searchQuery.isEmpty ||
             fullName.contains(searchQuery) ||
             userName.contains(searchQuery) ||
             lastName.contains(searchQuery) ||
             subject.contains(searchQuery) ||
-            department.contains(searchQuery) ||
-            subjectCode.contains(searchQuery);
+            department.contains(searchQuery);
         
-        // Department filter
-        final matchesDepartment = _selectedDepartment == null ||
-            department == _selectedDepartment!.toLowerCase();
+        // Department filter - when null (All Departments), show ALL tutors
+        bool matchesDepartment = true;
+        if (_selectedDepartment != null) {
+          // Only filter by department when a specific department is selected
+          if (_selectedDepartment == 'CS') {
+            matchesDepartment = department.contains('computer science') || 
+                               department == 'cs';
+          } else if (_selectedDepartment == 'CE') {
+            matchesDepartment = department.contains('computer engineering') || 
+                               department == 'ce';
+          }
+        }
+        // When _selectedDepartment is null, matchesDepartment stays true for ALL tutors
         
-        // Subject filter - matches either subject code or subject name
+        // Subject filter - when null (All Subjects), show ALL tutors
         bool matchesSubject = _selectedSubject == null;
         if (!matchesSubject && _selectedSubject != null) {
-          // Check if selected subject matches the tutor's subject code or subject name
-          matchesSubject = subjectCode == _selectedSubject!.toLowerCase() ||
-              subject.contains(_selectedSubject!.toLowerCase()) ||
+          // Only filter by subject when a specific subject is selected
+          // Check if the selected subject code matches or if the subject name contains it
+          matchesSubject = subject.contains(_selectedSubject!.toLowerCase()) ||
               (_availableSubjects[_selectedSubject] != null && 
                subject.contains(_availableSubjects[_selectedSubject]!.toLowerCase()));
         }
+        // When _selectedSubject is null, matchesSubject stays true for ALL tutors
         
         return matchesSearch && matchesDepartment && matchesSubject;
       }).toList();
@@ -436,28 +453,30 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: _selectedDepartment,
+                              value: _selectedDepartment,
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.white,
                                 hintText: 'Department',
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
                                 ),
                               ),
+                              isExpanded: true,
                               items: const [
                                 DropdownMenuItem<String>(
                                   value: null,
-                                  child: Text('All Departments'),
+                                  child: Text('All Departments', overflow: TextOverflow.ellipsis),
                                 ),
                                 DropdownMenuItem(
-                                  value: 'Computer Engineering',
-                                  child: Text('Computer Engineering'),
+                                  value: 'CE',
+                                  child: Text('Computer Engineering', overflow: TextOverflow.ellipsis),
                                 ),
                                 DropdownMenuItem(
-                                  value: 'Computer Science',
-                                  child: Text('Computer Science'),
+                                  value: 'CS',
+                                  child: Text('Computer Science', overflow: TextOverflow.ellipsis),
                                 ),
                               ],
                               onChanged: (value) {
@@ -472,37 +491,37 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: _selectedSubject,
+                              value: _selectedSubject,
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.white,
                                 hintText: 'Subject',
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
                                 ),
                               ),
+                              isExpanded: true,
                               menuMaxHeight: 300,
                               items: [
                                 const DropdownMenuItem(
                                   value: null,
-                                  child: Text('All Subjects'),
+                                  child: Text('All Subjects', overflow: TextOverflow.ellipsis),
                                 ),
                                 ..._availableSubjects.entries.map((entry) {
                                   return DropdownMenuItem(
                                     value: entry.key,
-                                    child: Text('${entry.key} - ${entry.value}'),
+                                    child: Text('${entry.key} - ${entry.value}', overflow: TextOverflow.ellipsis),
                                   );
                                 }),
                               ],
-                              onChanged: _selectedDepartment == null
-                                  ? null // Disable if no department selected
-                                  : (value) {
-                                      setState(() {
-                                        _selectedSubject = value;
-                                        _applyFilters();
-                                      });
-                                    },
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedSubject = value;
+                                  _applyFilters();
+                                });
+                              },
                             ),
                           ),
                         ],
@@ -569,16 +588,22 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                                 final lastName = tutor['user']?['last_name'] ?? '';
                                 final fullName = '$userName $lastName'.trim();
                                 final subject = tutor['subject'] ?? 'Not Specified';
-                                final rate = tutor['accountnumber'] ?? 'N/A';
+                                
+                                // Handle rate with proper null checking
+                                String rateText = 'N/A';
+                                final rateValue = tutor['rate'];
+                                if (rateValue != null && rateValue.toString().isNotEmpty && rateValue.toString() != 'null' && rateValue.toString() != 'Not Provided') {
+                                  rateText = rateValue.toString().startsWith('Rs') 
+                                      ? rateValue.toString()
+                                      : 'Rs. $rateValue/hr';
+                                }
                                 
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8.0),
                                   child: TutorCard(
                                     tutorName: fullName,
                                     subject: subject,
-                                    rate: rate.toString().startsWith('Rs') 
-                                        ? rate 
-                                        : 'Rs. $rate/hr',
+                                    rate: rateText,
                                     onTap: () => _viewTutorProfile(tutor),
                                   ),
                                 );

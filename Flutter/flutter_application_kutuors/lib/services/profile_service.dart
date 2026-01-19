@@ -37,7 +37,6 @@ class ProfileService {
     String? phoneNumber,
     String? subject,
     String? semester,
-    String? subjectCode,
     String? rate,
     String? year,
     String? department,
@@ -49,7 +48,6 @@ class ProfileService {
     if (phoneNumber != null) body['phone_number'] = phoneNumber;
     if (subject != null) body['subject'] = subject;
     if (semester != null) body['semester'] = semester;
-    if (subjectCode != null) body['subject_code'] = subjectCode;
     if (rate != null) body['rate'] = rate;
     if (year != null) body['year'] = year;
     if (department != null) body['department'] = department;
