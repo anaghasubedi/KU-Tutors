@@ -7,7 +7,7 @@ from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate, get_user_model
 from django.core.mail import send_mail
 from django.contrib.auth.hashers import make_password
-from .models import TutorProfile, TuteeProfile, TemporarySignup, Availability
+from .models import TutorProfile, TuteeProfile, TemporarySignup, Availability, Booking
 from .serializers import (
     SignupSerializer, LoginSerializer, UserSerializer, 
     VerifyEmailSerializer, TutorProfileSerializer, AvailabilitySerializer
@@ -280,9 +280,8 @@ def update_profile(request):
                     'department': tutor_profile.department,
                     'semester': tutor_profile.semester,
                     'year': tutor_profile.year,
-                    'subject_code': tutor_profile.subjectcode,
                     'rate': str(tutor_profile.rate) if tutor_profile.rate else None,
-                    'account_number': str(tutor_profile.accountNumber) if tutor_profile.accountNumber else None,
+                    'account_number': str(tutor_profile.account_number) if tutor_profile.account_number else None,
                 })
             except:
                 pass
@@ -298,6 +297,57 @@ def update_profile(request):
                 pass
         
         return Response(profile_data, status=status.HTTP_200_OK)
+    
+    elif request.method == 'PATCH':
+        # Update user basic info
+        name = request.data.get('name')
+        if name:
+            name_parts = name.split(' ', 1)
+            user.first_name = name_parts[0]
+            user.last_name = name_parts[1] if len(name_parts) > 1 else ''
+        
+        if 'phone_number' in request.data:
+            user.contact = request.data.get('phone_number')
+        
+        user.save()
+        
+        # Update profile based on role
+        if user.role == 'Tutor':
+            try:
+                profile = user.tutor_profile
+                if 'subject' in request.data:
+                    profile.subject = request.data.get('subject')
+                if 'year' in request.data:
+                    profile.year = request.data.get('year')  # Fixed typo: was request.year.get
+                if 'semester' in request.data:
+                    profile.semester = request.data.get('semester')
+                if 'department' in request.data:
+                    profile.department = request.data.get('department')
+                if 'rate' in request.data:
+                    profile.rate = request.data.get('rate')
+                if 'account_number' in request.data:
+                    profile.account_number = request.data.get('account_number')  # Fixed: was accountnumber
+                profile.save()
+            except Exception as e:
+                print(f"Error updating tutor profile: {e}")
+                
+        elif user.role == 'Tutee':
+            try:
+                profile = user.tutee_profile
+                if 'year' in request.data:
+                    profile.year = request.data.get('year')
+                if 'semester' in request.data:
+                    profile.semester = request.data.get('semester')
+                if 'department' in request.data:
+                    profile.department = request.data.get('department')
+                profile.save()
+            except Exception as e:
+                print(f"Error updating tutee profile: {e}")
+        
+        return Response({
+            'message': 'Profile updated successfully',
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
     
     elif request.method == 'PATCH':
         # Update user basic info
@@ -947,9 +997,30 @@ def add_tutee_subjects(request):
 def demo_sessions(request):
     """Get available demo sessions for tutees"""
     try:
-        # Return empty list for now - implement your logic later
+        # Get all available slots that are not booked
+        available_slots = Availability.objects.filter(
+            status='Available',
+            date__gte=date.today()
+        ).select_related('tutor__user').order_by('date', 'start_time')
+        
+        demo_sessions = []
+        for slot in available_slots:
+            demo_sessions.append({
+                'id': slot.id,
+                'tutor_id': slot.tutor.id,
+                'tutor_name': f"{slot.tutor.user.first_name} {slot.tutor.user.last_name}".strip(),
+                'subject': slot.tutor.subject,
+                'date': slot.date.strftime('%Y-%m-%d'),
+                'formatted_date': slot.formatted_date(),
+                'day_name': slot.day_name(),
+                'time': slot.formatted_time(),
+                'start_time': slot.start_time.strftime('%H:%M'),
+                'end_time': slot.end_time.strftime('%H:%M'),
+            })
+        
         return Response({
-            'demo_sessions': []
+            'demo_sessions': demo_sessions,
+            'count': len(demo_sessions)
         })
     except Exception as e:
         return Response(
@@ -960,12 +1031,70 @@ def demo_sessions(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def booked_classes(request):
-    """Get booked classes for the logged-in tutee"""
+    """Get booked classes for the logged-in user (works for both tutors and tutees)"""
     try:
-        # Return empty list for now - implement your logic later
-        return Response({
-            'booked_classes': []
-        })
+        user = request.user
+        
+        if user.role == 'Tutee':
+            # Get bookings made by this tutee
+            bookings = Booking.objects.filter(
+                tutee=user.tutee_profile
+            ).select_related(
+                'availability__tutor__user',
+                'tutee__user'
+            ).order_by('-booked_at')
+            
+            booked_classes = []
+            for booking in bookings:
+                booked_classes.append({
+                    'id': booking.id,
+                    'tutor_name': f"{booking.tutor_profile.user.first_name} {booking.tutor_profile.user.last_name}".strip(),
+                    'subject': booking.subject,
+                    'date': booking.availability.date.strftime('%Y-%m-%d'),
+                    'time': booking.availability.formatted_time(),
+                    'scheduled_at': f"{booking.availability.formatted_date()} at {booking.availability.formatted_time()}",
+                    'status': booking.status,
+                    'is_demo': booking.is_demo,
+                })
+            
+            return Response({
+                'booked_classes': booked_classes,
+                'count': len(booked_classes)
+            })
+            
+        elif user.role == 'Tutor':
+            # Get bookings for this tutor's availability slots
+            bookings = Booking.objects.filter(
+                availability__tutor=user.tutor_profile
+            ).select_related(
+                'availability__tutor__user',
+                'tutee__user'
+            ).order_by('-booked_at')
+            
+            booked_classes = []
+            for booking in bookings:
+                booked_classes.append({
+                    'id': booking.id,
+                    'tutee_name': f"{booking.tutee.user.first_name} {booking.tutee.user.last_name}".strip(),
+                    'student_name': f"{booking.tutee.user.first_name} {booking.tutee.user.last_name}".strip(),
+                    'subject': booking.subject,
+                    'date': booking.availability.date.strftime('%Y-%m-%d'),
+                    'time': booking.availability.formatted_time(),
+                    'scheduled_at': f"{booking.availability.formatted_date()} at {booking.availability.formatted_time()}",
+                    'status': booking.status,
+                    'is_demo': booking.is_demo,
+                })
+            
+            return Response({
+                'booked_classes': booked_classes,
+                'count': len(booked_classes)
+            })
+        else:
+            return Response(
+                {'error': 'Invalid user role'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
     except Exception as e:
         return Response(
             {'error': str(e)},
@@ -977,19 +1106,63 @@ def booked_classes(request):
 def book_demo_session(request):
     """Book a demo session"""
     try:
-        session_id = request.data.get('session_id')
-        
-        if not session_id:
+        if request.user.role != 'Tutee':
             return Response(
-                {'error': 'session_id is required'},
+                {'error': 'Only tutees can book demo sessions'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        availability_id = request.data.get('availability_id')
+        
+        if not availability_id:
+            return Response(
+                {'error': 'availability_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # TODO: Implement booking logic
+        # Get the availability slot
+        try:
+            availability = Availability.objects.get(id=availability_id)
+        except Availability.DoesNotExist:
+            return Response(
+                {'error': 'Availability slot not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if slot is available
+        if availability.status != 'Available':
+            return Response(
+                {'error': 'This time slot is no longer available'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if slot is in the past
+        if availability.date < date.today():
+            return Response(
+                {'error': 'Cannot book slots in the past'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create the booking
+        booking = Booking.objects.create(
+            availability=availability,
+            tutee=request.user.tutee_profile,
+            is_demo=True,
+            status='pending'
+        )
+        
+        # Update availability status
+        availability.status = 'Booked'
+        availability.save()
         
         return Response({
-            'message': 'Demo session booked successfully'
+            'message': 'Demo session booked successfully',
+            'booking_id': booking.id,
+            'tutor_name': f"{availability.tutor.user.first_name} {availability.tutor.user.last_name}".strip(),
+            'date': availability.date.strftime('%Y-%m-%d'),
+            'time': availability.formatted_time(),
         }, status=status.HTTP_201_CREATED)
+        
     except Exception as e:
         return Response(
             {'error': str(e)},
@@ -1001,11 +1174,42 @@ def book_demo_session(request):
 def cancel_booking(request, booking_id):
     """Cancel a booking"""
     try:
-        # TODO: Implement cancellation logic
+        user = request.user
+        
+        try:
+            booking = Booking.objects.select_related('availability').get(id=booking_id)
+        except Booking.DoesNotExist:
+            return Response(
+                {'error': 'Booking not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check permissions
+        if user.role == 'Tutee':
+            if booking.tutee.user != user:
+                return Response(
+                    {'error': 'You can only cancel your own bookings'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        elif user.role == 'Tutor':
+            if booking.availability.tutor.user != user:
+                return Response(
+                    {'error': 'You can only cancel bookings for your sessions'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Update availability status back to Available
+        availability = booking.availability
+        availability.status = 'Available'
+        availability.save()
+        
+        # Delete the booking
+        booking.delete()
         
         return Response({
             'message': 'Booking cancelled successfully'
         }, status=status.HTTP_200_OK)
+        
     except Exception as e:
         return Response(
             {'error': str(e)},

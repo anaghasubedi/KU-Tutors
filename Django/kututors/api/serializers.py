@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import TutorProfile, TuteeProfile, Session, TemporarySignup, Availability
+from .models import TutorProfile, TuteeProfile, Session, TemporarySignup, Availability, Booking
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 from datetime import timedelta
@@ -159,3 +159,40 @@ class AvailabilitySerializer(serializers.ModelSerializer):
     
     def get_formatted_time(self, obj):
         return obj.formatted_time()
+
+class BookingSerializer(serializers.ModelSerializer):
+    tutor_name = serializers.SerializerMethodField()
+    tutee_name = serializers.SerializerMethodField()
+    subject = serializers.SerializerMethodField()
+    date = serializers.SerializerMethodField()
+    time = serializers.SerializerMethodField()
+    scheduled_at = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Booking
+        fields = [
+            'id', 'tutor_name', 'tutee_name', 'subject', 
+            'date', 'time', 'scheduled_at', 'status', 'is_demo', 
+            'booked_at', 'notes'
+        ]
+        read_only_fields = ['id', 'booked_at']
+    
+    def get_tutor_name(self, obj):
+        user = obj.availability.tutor.user
+        return f"{user.first_name} {user.last_name}".strip()
+    
+    def get_tutee_name(self, obj):
+        user = obj.tutee.user
+        return f"{user.first_name} {user.last_name}".strip()
+    
+    def get_subject(self, obj):
+        return obj.availability.tutor.subject
+    
+    def get_date(self, obj):
+        return obj.availability.date.strftime('%Y-%m-%d')
+    
+    def get_time(self, obj):
+        return obj.availability.formatted_time()
+    
+    def get_scheduled_at(self, obj):
+        return f"{obj.availability.formatted_date()} at {obj.availability.formatted_time()}"

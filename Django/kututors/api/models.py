@@ -104,6 +104,49 @@ class Availability(models.Model):
         ('Booked', 'Booked'),
         ('Unavailable', 'Unavailable'),
     ]
+
+class Booking(models.Model):
+    """
+    Represents a booking/session between a tutor and tutee
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    availability = models.OneToOneField(
+        Availability, 
+        on_delete=models.CASCADE, 
+        related_name='booking'
+    )
+    tutee = models.ForeignKey(
+        TuteeProfile, 
+        on_delete=models.CASCADE, 
+        related_name='bookings'
+    )
+    is_demo = models.BooleanField(default=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    booked_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    notes = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-booked_at']
+    
+    def __str__(self):
+        tutor_name = self.availability.tutor.user.username
+        tutee_name = self.tutee.user.username
+        return f"{tutee_name} -> {tutor_name} on {self.availability.date}"
+    
+    @property
+    def tutor_profile(self):
+        return self.availability.tutor
+    
+    @property
+    def subject(self):
+        return self.availability.tutor.subject
     
     tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='availabilities')
     date = models.DateField()
