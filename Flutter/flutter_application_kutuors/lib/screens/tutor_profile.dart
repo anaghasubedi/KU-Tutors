@@ -33,7 +33,7 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
   String? _selectedYear;
   String? _selectedSemester;
 
-  final List<String> _departments = ['CS', 'CE'];
+  final List<String> _departments = ['Computer Science', 'Computer Engineering'];
   final List<String> _years = ['1', '2', '3', '4'];
   final List<String> _semesters = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
@@ -59,7 +59,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     final newStatus = !_isOnline;
     
     try {
-      // Use the profile service to update online status
       await services.profileService.updateProfileData(
         name: _nameController.text,
         phoneNumber: _phoneController.text,
@@ -95,125 +94,137 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     }
   }
 
-  Future<void> _loadUserProfile() async {
-    setState(() => _isLoading = true);
+  String _safeGetString(dynamic value, {String defaultValue = ''}) {
+    if (value == null || value == 'null' || value == 'Not Specified' || value == 'Not Provided' || value == 'Unknown') {
+      return defaultValue;
+    }
+    return value.toString();
+  }
 
-    try {
-      Map<String, dynamic> data;
+Future<void> _loadUserProfile() async {
+  setState(() => _isLoading = true);
+
+  try {
+    Map<String, dynamic> data;
+    
+    if (widget.isOwner) {
+      // Load own profile
+      data = await services.profileService.getProfileData();
       
-      if (widget.isOwner) {
-        data = await services.profileService.getProfileData();
-        setState(() {
-          _nameController.text = data['name'] ?? '';
-          _kuEmailController.text = data['email'] ?? '';
-          _phoneController.text = data['phone_number'] ?? '';
-          _subjectController.text = data['subject'] ?? '';
-          _selectedDepartment = data['department'];
-          _selectedSemester = data['semester'];
-          _selectedYear = data['year'];
-          _rateController.text = data['rate'] ?? '';
-          _accountNumberController.text = data['account_number'] ?? '';
-          _isOnline = data['is_online'] ?? true;
-        });
-      } else if (widget.tutorId != null) {
-        data = await services.tutorService.getTutorProfile(widget.tutorId!);
-        
-        // Debug print to see the actual structure
-        debugPrint('Tutor profile data: $data');
-        debugPrint('User data: ${data['user']}');
-        
-        // Handle user data
-        final user = data['user'];
-        
-        setState(() {
-          // Name handling
-          if (user != null) {
-            final firstName = user['first_name'] ?? '';
-            final lastName = user['last_name'] ?? '';
-            final fullName = '$firstName $lastName'.trim();
-            debugPrint('Setting name to: $fullName');
-            _nameController.text = fullName;
-            _kuEmailController.text = user['email'] ?? '';
-            _phoneController.text = user['contact'] ?? '';
-          } else {
-            debugPrint('User data is null!');
-          }
-          
-          // Profile fields - use exact field names from TutorProfile model
-          final subject = data['subject'];
-          _subjectController.text = (subject == null || subject == 'null' || subject == 'Not Specified') ? '' : subject.toString();
-          
-          final dept = data['department'];
-          if (dept != null && dept != 'null') {
-            _selectedDepartment = dept.toString();
-          } else {
-            _selectedDepartment = null;
-          }
-          
-          final year = data['year'];
-          if (year != null && year != 'null' && year != 'Unknown') {
-            _selectedYear = year.toString();
-          } else {
-            _selectedYear = null;
-          }
-          
-          final sem = data['semester'];
-          if (sem != null && sem != 'null' && sem != 'Unknown') {
-            _selectedSemester = sem.toString();
-          } else {
-            _selectedSemester = null;
-          }
-          
-          // Use the actual rate and account_number fields
-          final rate = data['rate'];
-          _rateController.text = (rate == null || rate == 'null' || rate == 'Not Provided') ? '' : rate.toString();
-          
-          final accNum = data['account_number'];
-          _accountNumberController.text = (accNum == null || accNum == 'null' || accNum == 'Not Provided') ? '' : accNum.toString();
-          
-          _isOnline = data['is_online'] ?? true;
-        });
-      } else {
-        throw Exception('No tutor ID provided for public view');
-      }
-
-      if (_subjectController.text.isNotEmpty) {
-        _subjects = _subjectController.text.split(',').map((s) => s.trim()).toList();
-      }
-
-      setState(() => _isLoading = false);
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('is_online', _isOnline);
+      debugPrint('Owner profile data: $data');
       
-      await _loadProfilePicture();
-    } catch (e) {
-      debugPrint('Error loading profile: $e');
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load profile: $e')),
-        );
+      // Update controllers with data
+      _nameController.text = _safeGetString(data['name']);
+      _kuEmailController.text = _safeGetString(data['email']);
+      _phoneController.text = _safeGetString(data['phone_number']);
+      _subjectController.text = _safeGetString(data['subject']);
+      _rateController.text = _safeGetString(data['rate']);
+      _accountNumberController.text = _safeGetString(data['account_number']);
+      
+      _selectedDepartment = _safeGetString(data['department']).isEmpty 
+          ? null 
+          : _safeGetString(data['department']);
+      _selectedYear = _safeGetString(data['year']).isEmpty 
+          ? null 
+          : _safeGetString(data['year']);
+      _selectedSemester = _safeGetString(data['semester']).isEmpty 
+          ? null 
+          : _safeGetString(data['semester']);
+      
+      _isOnline = data['is_online'] ?? true;
+      
+    } else if (widget.tutorId != null) {
+      // Load another tutor's profile
+      final response = await services.tutorService.getTutorProfile(widget.tutorId!);
+      
+      // The response has a 'tutor' key that contains the actual data
+      data = response['tutor'] as Map<String, dynamic>;
+      
+      debugPrint('Public tutor profile data: $data');
+      
+      // Handle nested user data
+      if (data.containsKey('user') && data['user'] != null) {
+        final user = data['user'] as Map<String, dynamic>;
+        final firstName = _safeGetString(user['first_name']);
+        final lastName = _safeGetString(user['last_name']);
+        _nameController.text = '$firstName $lastName'.trim();
+        _kuEmailController.text = _safeGetString(user['email']);
+        _phoneController.text = _safeGetString(user['contact']);
       }
+      
+      // Profile fields from tutor profile
+      _subjectController.text = _safeGetString(data['subject']);
+      _rateController.text = _safeGetString(data['rate']);
+      _accountNumberController.text = _safeGetString(data['account_number']);
+      
+      _selectedDepartment = _safeGetString(data['department']).isEmpty 
+          ? null 
+          : _safeGetString(data['department']);
+      _selectedYear = _safeGetString(data['year']).isEmpty 
+          ? null 
+          : _safeGetString(data['year']);
+      _selectedSemester = _safeGetString(data['semester']).isEmpty 
+          ? null 
+          : _safeGetString(data['semester']);
+      
+      _isOnline = data['is_online'] ?? false;
+    } else {
+      throw Exception('No tutor ID provided for public view');
+    }
+
+    // Process subjects
+    if (_subjectController.text.isNotEmpty) {
+      _subjects = _subjectController.text
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+
+    // Update state all at once
+    setState(() {
+      _isLoading = false;
+    });
+
+    // Save online status to preferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_online', _isOnline);
+    
+    // Load profile picture after updating state
+    await _loadProfilePicture();
+    
+  } catch (e, stackTrace) {
+    debugPrint('Error loading profile: $e');
+    debugPrint('Stack trace: $stackTrace');
+    setState(() => _isLoading = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load profile: $e')),
+      );
     }
   }
+}
 
   Future<void> _loadProfilePicture() async {
     try {
+      String? imageData;
+      
       if (widget.isOwner) {
-        final imageData = await services.profileService.getProfileImage();
-        if (imageData != null && imageData.isNotEmpty && imageData != 'null') {
-          _processImageData(imageData);
-        }
+        imageData = await services.profileService.getProfileImage();
       } else if (widget.tutorId != null) {
         final data = await services.tutorService.getTutorProfile(widget.tutorId!);
-        final profilePicUrl = data['profile_picture_url'];
-        if (profilePicUrl != null) {
-          final imageDataString = profilePicUrl.toString();
-          if (imageDataString.isNotEmpty && imageDataString != 'null') {
-            _processImageData(imageDataString);
-          }
-        }
+        
+        // Try multiple possible field names
+        imageData = _safeGetString(
+          data['profile_picture_url'] ?? 
+          data['profile_picture'] ?? 
+          data['image_url'] ?? 
+          data['image']
+        );
+      }
+      
+      if (imageData != null && imageData.isNotEmpty && imageData != 'null') {
+        await _processImageData(imageData);
       }
     } catch (e) {
       debugPrint('Error loading profile picture: $e');
@@ -244,29 +255,40 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     }
   }
 
-  Future<void> _loadAvailability() async {
-    try {
-      Map<String, dynamic> data;
-      
-      if (widget.isOwner) {
-        data = await services.availabilityService.getAvailability();
-      } else if (widget.tutorId != null) {
-        data = await services.availabilityService.getTutorAvailability(widget.tutorId!);
-      } else {
-        return;
-      }
+Future<void> _loadAvailability() async {
+  try {
+    Map<String, dynamic> data;
+    
+    if (widget.isOwner) {
+      data = await services.availabilityService.getAvailability();
+    } else if (widget.tutorId != null) {
+      data = await services.availabilityService.getTutorAvailability(widget.tutorId!);
+    } else {
+      return;
+    }
 
-      debugPrint('Availability data received: $data');
-      
-      setState(() {
-        _availability = List<Map<String, dynamic>>.from(data['slots'] ?? []);
-      });
-      
-      debugPrint('Availability updated: $_availability');
-    } catch (e) {
-      debugPrint('Error loading availability: $e');
+    debugPrint('Availability data received: $data');
+    
+    // The backend returns 'availabilities' key, not 'slots'
+    final availabilityList = data['availabilities'] ?? [];
+    
+    setState(() {
+      _availability = List<Map<String, dynamic>>.from(availabilityList);
+    });
+    
+    debugPrint('Availability updated: $_availability');
+  } catch (e) {
+    debugPrint('Error loading availability: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not load availability: $e'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
+}
 
   Future<void> _showAddAvailabilityDialog() async {
     DateTime? selectedDate;
@@ -431,7 +453,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
         );
       }
       
-      // Reload availability to show updated status
       await _loadAvailability();
     } catch (e) {
       debugPrint('Error booking demo session: $e');
@@ -831,7 +852,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                 ? Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      // Status badge (display only)
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 16,
@@ -867,7 +887,6 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
                                         ),
                                       ),
                                       const SizedBox(width: 8),
-                                      // Delete button
                                       IconButton(
                                         icon: const Icon(Icons.delete, color: Colors.red),
                                         onPressed: () => _deleteAvailability(slot['id']),
