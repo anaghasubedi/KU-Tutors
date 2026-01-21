@@ -685,46 +685,73 @@ def get_tutor_availability(request):
         from_date = request.GET.get('from_date')
         
         if tutor_id:
-            tutor = TutorProfile.objects.get(id=tutor_id)
+            # Get specific tutor's profile
+            try:
+                tutor = TutorProfile.objects.get(id=tutor_id)
+            except TutorProfile.DoesNotExist:
+                return Response({'error': 'Tutor not found'}, status=status.HTTP_404_NOT_FOUND)
         else:
+            # Get current user's tutor profile
             if request.user.role != 'Tutor':
                 return Response({'error': 'Only tutors can view their availability'}, 
                               status=status.HTTP_403_FORBIDDEN)
-            tutor = request.user.tutor_profile
+            try:
+                tutor = request.user.tutor_profile
+            except TutorProfile.DoesNotExist:
+                return Response({'error': 'Tutor profile not found'}, 
+                              status=status.HTTP_404_NOT_FOUND)
         
+        # Query availabilities using the correct field name
         availabilities = Availability.objects.filter(tutor=tutor)
         
         # Filter by specific date
         if filter_date:
-            filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
-            availabilities = availabilities.filter(date=filter_date_obj)
+            try:
+                filter_date_obj = datetime.strptime(filter_date, '%Y-%m-%d').date()
+                availabilities = availabilities.filter(date=filter_date_obj)
+            except ValueError:
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, 
+                               status=status.HTTP_400_BAD_REQUEST)
         
         # Filter future dates only
         elif from_date:
-            from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date()
-            availabilities = availabilities.filter(date__gte=from_date_obj)
+            try:
+                from_date_obj = datetime.strptime(from_date, '%Y-%m-%d').date()
+                availabilities = availabilities.filter(date__gte=from_date_obj)
+            except ValueError:
+                return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, 
+                               status=status.HTTP_400_BAD_REQUEST)
         else:
             # Default: show only future dates
             availabilities = availabilities.filter(date__gte=date.today())
         
-        data = [{
-            'id': a.id,
-            'date': a.date.strftime('%Y-%m-%d'),
-            'formatted_date': a.formatted_date(),
-            'day_name': a.day_name(),
-            'start_time': a.start_time.strftime('%H:%M'),
-            'end_time': a.end_time.strftime('%H:%M'),
-            'formatted_time': a.formatted_time(),
-            'status': a.status,
-        } for a in availabilities]
+        # Order by date and time
+        availabilities = availabilities.order_by('date', 'start_time')
+        
+        # Serialize data
+        data = []
+        for a in availabilities:
+            try:
+                data.append({
+                    'id': a.id,
+                    'date': a.date.strftime('%Y-%m-%d') if a.date else None,
+                    'formatted_date': a.formatted_date() if a.date else 'N/A',
+                    'day_name': a.day_name() if a.date else 'N/A',
+                    'start_time': a.start_time.strftime('%H:%M') if a.start_time else None,
+                    'end_time': a.end_time.strftime('%H:%M') if a.end_time else None,
+                    'formatted_time': a.formatted_time() if (a.start_time and a.end_time) else 'N/A',
+                    'status': a.status,
+                })
+            except Exception as e:
+                print(f"Error formatting availability {a.id}: {e}")
+                continue
         
         return Response({'availabilities': data, 'count': len(data)}, status=status.HTTP_200_OK)
-    except TutorProfile.DoesNotExist:
-        return Response({'error': 'Tutor not found'}, status=status.HTTP_404_NOT_FOUND)
-    except ValueError:
-        return Response({'error': 'Invalid date format. Use YYYY-MM-DD'}, 
-                       status=status.HTTP_400_BAD_REQUEST)
+        
     except Exception as e:
+        import traceback
+        print(f"Error in get_tutor_availability: {e}")
+        print(traceback.format_exc())
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
@@ -1222,33 +1249,45 @@ def get_tutor_availability_by_id(request, tutor_id):
     """Get availability for a specific tutor by their ID"""
     try:
         # Get the tutor profile
-        tutor_profile = TutorProfile.objects.get(id=tutor_id)
+        try:
+            tutor_profile = TutorProfile.objects.get(id=tutor_id)
+        except TutorProfile.DoesNotExist:
+            return Response(
+                {'error': 'Tutor not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
         # Get all availability slots for this tutor
         availability_slots = Availability.objects.filter(
-            tutor_profile=tutor_profile
-        ).order_by('date', 'start_time')
+            tutor=tutor_profile  # Changed from tutor_profile to tutor
+        ).filter(date__gte=date.today()).order_by('date', 'start_time')
         
         # Serialize the availability data
         availability_data = []
         for slot in availability_slots:
-            availability_data.append({
-                'id': slot.id,
-                'date': slot.date.strftime('%Y-%m-%d'),
-                'start_time': slot.start_time.strftime('%H:%M'),
-                'end_time': slot.end_time.strftime('%H:%M'),
-                'is_booked': slot.is_booked,
-            })
+            try:
+                availability_data.append({
+                    'id': slot.id,
+                    'date': slot.date.strftime('%Y-%m-%d') if slot.date else None,
+                    'formatted_date': slot.formatted_date() if slot.date else 'N/A',
+                    'day_name': slot.day_name() if slot.date else 'N/A',
+                    'start_time': slot.start_time.strftime('%H:%M') if slot.start_time else None,
+                    'end_time': slot.end_time.strftime('%H:%M') if slot.end_time else None,
+                    'formatted_time': slot.formatted_time() if (slot.start_time and slot.end_time) else 'N/A',
+                    'status': slot.status,
+                })
+            except Exception as e:
+                print(f"Error formatting slot {slot.id}: {e}")
+                continue
         
         return Response({
-            'availability': availability_data
+            'availabilities': availability_data,
+            'count': len(availability_data)
         })
-    except TutorProfile.DoesNotExist:
-        return Response(
-            {'error': 'Tutor not found'},
-            status=status.HTTP_404_NOT_FOUND
-        )
     except Exception as e:
+        import traceback
+        print(f"Error in get_tutor_availability_by_id: {e}")
+        print(traceback.format_exc())
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR

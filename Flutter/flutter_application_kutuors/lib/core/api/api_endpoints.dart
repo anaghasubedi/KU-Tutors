@@ -2,7 +2,7 @@ class ApiEndpoints {
   // Change the IP address to your laptop's IP for physical device builds
   //The existing IP is used to access via the andriod emulator
   // Run server using: python manage.py runserver 0.0.0.0:8000
-  static const String baseUrl = 'http://192.168.16.245:8000/api';
+  static const String baseUrl = 'http://10.26.238.28:8000/api';
 
   // Auth endpoints
   static const String login = '/login/';

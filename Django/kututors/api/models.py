@@ -81,7 +81,6 @@ class TuteeProfile(models.Model):
     department = models.CharField(max_length=50, choices=DEPARTMENT_CHOICES, default="Computer Science")
     profile_picture = models.ImageField(upload_to='tutor_profiles/pictures/', null=True, blank=True)
     
-    
     def __str__(self):
         return f"{self.user.username} - {self.semester}"
 
@@ -104,6 +103,33 @@ class Availability(models.Model):
         ('Booked', 'Booked'),
         ('Unavailable', 'Unavailable'),
     ]
+    
+    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='availabilities', null=True, blank=True)
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Available')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['date', 'start_time']
+        unique_together = ['tutor', 'date', 'start_time']
+    
+    def __str__(self):
+        return f"{self.tutor.user.username} - {self.date} {self.start_time}-{self.end_time} ({self.status})"
+    
+    def formatted_time(self):
+        """Returns formatted time string like '2 PM - 3 PM'"""
+        return f"{self.start_time.strftime('%I:%M %p')} - {self.end_time.strftime('%I:%M %p')}"
+    
+    def formatted_date(self):
+        """Returns formatted date string"""
+        return self.date.strftime('%B %d, %Y')
+    
+    def day_name(self):
+        """Returns day name like 'Monday'"""
+        return self.date.strftime('%A')
 
 class Booking(models.Model):
     """
@@ -147,33 +173,6 @@ class Booking(models.Model):
     @property
     def subject(self):
         return self.availability.tutor.subject
-    
-    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='availabilities')
-    date = models.DateField()
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='Available')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['date', 'start_time']
-        unique_together = ['tutor', 'date', 'start_time']
-    
-    def __str__(self):
-        return f"{self.tutor.user.username} - {self.date} {self.start_time}-{self.end_time} ({self.status})"
-    
-    def formatted_time(self):
-        """Returns formatted time string like '2 PM - 3 PM'"""
-        return f"{self.start_time.strftime('%I:%M %p')} - {self.end_time.strftime('%I:%M %p')}"
-    
-    def formatted_date(self):
-        """Returns formatted date string"""
-        return self.date.strftime('%B %d, %Y')
-    
-    def day_name(self):
-        """Returns day name like 'Monday'"""
-        return self.date.strftime('%A')
 
 class UpdateLastSeenMiddleware:
     def __init__(self, get_response):
