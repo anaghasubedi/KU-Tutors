@@ -16,6 +16,11 @@ class TuteeService {
     return await _apiClient.get(ApiEndpoints.bookedClasses);
   }
 
+  /// Get completed classes for the logged-in user
+  Future<Map<String, dynamic>> getCompletedClasses() async {
+    return await _apiClient.get(ApiEndpoints.completedClasses);
+  }
+
   /// Book a demo session using availability ID
   Future<Map<String, dynamic>> bookDemoSession(int availabilityId) async {
     return await _apiClient.post(
@@ -28,6 +33,14 @@ class TuteeService {
   Future<void> cancelBooking(int bookingId) async {
     await _apiClient.delete(
       ApiEndpoints.cancelBooking(bookingId),
+    );
+  }
+
+  /// Mark a session as complete (for tutors)
+  Future<Map<String, dynamic>> markSessionComplete(int bookingId) async {
+    return await _apiClient.post(
+      ApiEndpoints.markSessionComplete(bookingId),
+      body: {},
     );
   }
 

@@ -1292,3 +1292,119 @@ def get_tutor_availability_by_id(request, tutor_id):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def completed_classes(request):
+    """Get completed classes for the logged-in user (works for both tutors and tutees)"""
+    try:
+        user = request.user
+        
+        if user.role == 'Tutee':
+            # Get completed bookings for this tutee
+            bookings = Booking.objects.filter(
+                tutee=user.tutee_profile,
+                status='completed'
+            ).select_related(
+                'availability__tutor__user',
+                'tutee__user'
+            ).order_by('-completed_at', '-updated_at')
+            
+            completed_classes = []
+            for booking in bookings:
+                completed_classes.append({
+                    'id': booking.id,
+                    'tutor_name': f"{booking.tutor_profile.user.first_name} {booking.tutor_profile.user.last_name}".strip(),
+                    'subject': booking.subject,
+                    'date': booking.availability.date.strftime('%Y-%m-%d'),
+                    'time': booking.availability.formatted_time(),
+                    'scheduled_at': f"{booking.availability.formatted_date()} at {booking.availability.formatted_time()}",
+                    'completed_at': booking.completed_at.strftime('%B %d, %Y') if booking.completed_at else 'N/A',
+                    'is_demo': booking.is_demo,
+                })
+            
+            return Response({
+                'completed_classes': completed_classes,
+                'count': len(completed_classes)
+            })
+            
+        elif user.role == 'Tutor':
+            # Get completed bookings for this tutor's availability slots
+            bookings = Booking.objects.filter(
+                availability__tutor=user.tutor_profile,
+                status='completed'
+            ).select_related(
+                'availability__tutor__user',
+                'tutee__user'
+            ).order_by('-completed_at', '-updated_at')
+            
+            completed_classes = []
+            for booking in bookings:
+                completed_classes.append({
+                    'id': booking.id,
+                    'tutee_name': f"{booking.tutee.user.first_name} {booking.tutee.user.last_name}".strip(),
+                    'student_name': f"{booking.tutee.user.first_name} {booking.tutee.user.last_name}".strip(),
+                    'subject': booking.subject,
+                    'date': booking.availability.date.strftime('%Y-%m-%d'),
+                    'time': booking.availability.formatted_time(),
+                    'scheduled_at': f"{booking.availability.formatted_date()} at {booking.availability.formatted_time()}",
+                    'completed_at': booking.completed_at.strftime('%B %d, %Y') if booking.completed_at else 'N/A',
+                    'is_demo': booking.is_demo,
+                })
+            
+            return Response({
+                'completed_classes': completed_classes,
+                'count': len(completed_classes)
+            })
+        else:
+            return Response(
+                {'error': 'Invalid user role'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_session_complete(request, booking_id):
+    """Mark a session as completed (for tutors)"""
+    try:
+        if request.user.role != 'Tutor':
+            return Response(
+                {'error': 'Only tutors can mark sessions as complete'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        try:
+            booking = Booking.objects.select_related('availability').get(id=booking_id)
+        except Booking.DoesNotExist:
+            return Response(
+                {'error': 'Booking not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Verify this is the tutor's booking
+        if booking.availability.tutor.user != request.user:
+            return Response(
+                {'error': 'You can only mark your own sessions as complete'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Mark as completed
+        booking.mark_completed()
+        
+        return Response({
+            'message': 'Session marked as completed',
+            'booking_id': booking.id,
+            'completed_at': booking.completed_at.strftime('%B %d, %Y at %I:%M %p') if booking.completed_at else None
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

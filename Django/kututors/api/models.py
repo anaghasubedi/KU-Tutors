@@ -156,6 +156,7 @@ class Booking(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     booked_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)  # NEW FIELD
     notes = models.TextField(blank=True, null=True)
     
     class Meta:
@@ -173,6 +174,12 @@ class Booking(models.Model):
     @property
     def subject(self):
         return self.availability.tutor.subject
+    
+    def mark_completed(self):
+        """Mark booking as completed"""
+        self.status = 'completed'
+        self.completed_at = timezone.now()
+        self.save()
 
 class UpdateLastSeenMiddleware:
     def __init__(self, get_response):

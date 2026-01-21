@@ -40,7 +40,9 @@ class ApiEndpoints {
   // Tutee endpoints
   static const String demoSessions = '/demo-sessions/';
   static const String bookedClasses = '/booked-classes/';
+  static const String completedClasses = '/completed-classes/';
   static const String bookDemoSession = '/book-demo-session/';
+  static String markSessionComplete(int bookingId) => '/mark-complete/$bookingId/';
   
   static String cancelBooking(int bookingId) => '/cancel-booking/$bookingId/';
 }

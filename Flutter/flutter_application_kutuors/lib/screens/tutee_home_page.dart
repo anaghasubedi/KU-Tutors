@@ -16,11 +16,11 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _tutors = [];
   List<Map<String, dynamic>> _filteredTutors = [];
-  List<Map<String, dynamic>> _demoSessions = [];
   List<Map<String, dynamic>> _bookedClasses = [];
+  List<Map<String, dynamic>> _completedClasses = [];
   bool _isLoadingTutors = true;
-  bool _isLoadingDemoSessions = true;
   bool _isLoadingBookedClasses = true;
+  bool _isLoadingCompletedClasses = true;
   final bool _showAllTutors = false;
   
   // Filter controllers
@@ -122,7 +122,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     if (_selectedDepartment == 'CS') {
       return _csSubjects;
     } else if (_selectedDepartment == 'CE') {
-      return _csSubjects;
+      return _ceSubjects;
     }
     // When "All Departments" is selected, combine both subject lists
     return {..._csSubjects, ..._ceSubjects};
@@ -132,8 +132,8 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   void initState() {
     super.initState();
     _loadTutors();
-    _loadDemoSessions();
     _loadBookedClasses();
+    _loadCompletedClasses();
     _searchController.addListener(_applyFilters);
   }
 
@@ -172,22 +172,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     }
   }
 
-  Future<void> _loadDemoSessions() async {
-    setState(() => _isLoadingDemoSessions = true);
-    
-    try {
-      final data = await services.tuteeService.getDemoSessions();
-      
-      setState(() {
-        _demoSessions = List<Map<String, dynamic>>.from(data['demo_sessions'] ?? []);
-        _isLoadingDemoSessions = false;
-      });
-    } catch (e) {
-      debugPrint('Error loading demo sessions: $e');
-      setState(() => _isLoadingDemoSessions = false);
-    }
-  }
-
   Future<void> _loadBookedClasses() async {
     setState(() => _isLoadingBookedClasses = true);
     
@@ -204,24 +188,19 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
     }
   }
 
-  Future<void> _bookDemoSession(Map<String, dynamic> session) async {
+  Future<void> _loadCompletedClasses() async {
+    setState(() => _isLoadingCompletedClasses = true);
+    
     try {
-      await services.tuteeService.bookDemoSession(session['id']);
+      final data = await services.tuteeService.getCompletedClasses();
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Demo session booked successfully!')),
-        );
-        _loadDemoSessions();
-        _loadBookedClasses();
-      }
+      setState(() {
+        _completedClasses = List<Map<String, dynamic>>.from(data['completed_classes'] ?? []);
+        _isLoadingCompletedClasses = false;
+      });
     } catch (e) {
-      debugPrint('Error booking demo session: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to book session: $e')),
-        );
-      }
+      debugPrint('Error loading completed classes: $e');
+      setState(() => _isLoadingCompletedClasses = false);
     }
   }
 
@@ -275,7 +254,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
         final subject = tutor['subject']?.toLowerCase() ?? '';
         final department = tutor['department']?.toLowerCase() ?? '';
         
-        // Search filter - search in name, subject, and department
+        // Search filter
         final matchesSearch = searchQuery.isEmpty ||
             fullName.contains(searchQuery) ||
             userName.contains(searchQuery) ||
@@ -283,10 +262,9 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
             subject.contains(searchQuery) ||
             department.contains(searchQuery);
         
-        // Department filter - when null (All Departments), show ALL tutors
+        // Department filter
         bool matchesDepartment = true;
         if (_selectedDepartment != null) {
-          // Only filter by department when a specific department is selected
           if (_selectedDepartment == 'CS') {
             matchesDepartment = department.contains('computer science') || 
                                department == 'cs';
@@ -295,18 +273,14 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                                department == 'ce';
           }
         }
-        // When _selectedDepartment is null, matchesDepartment stays true for ALL tutors
         
-        // Subject filter - when null (All Subjects), show ALL tutors
+        // Subject filter
         bool matchesSubject = _selectedSubject == null;
         if (!matchesSubject && _selectedSubject != null) {
-          // Only filter by subject when a specific subject is selected
-          // Check if the selected subject code matches or if the subject name contains it
           matchesSubject = subject.contains(_selectedSubject!.toLowerCase()) ||
               (_availableSubjects[_selectedSubject] != null && 
                subject.contains(_availableSubjects[_selectedSubject]!.toLowerCase()));
         }
-        // When _selectedSubject is null, matchesSubject stays true for ALL tutors
         
         return matchesSearch && matchesDepartment && matchesSubject;
       }).toList();
@@ -363,13 +337,12 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
       _handlelogout();
     }
     else {
-      // Only update _selectedIndex for Home (index 0)
       setState(() => _selectedIndex = index);
     }
   }
 
   void _viewTutorProfile(Map<String, dynamic> tutor) {
-    final tutorId = tutor['id']; // Get tutor profile ID
+    final tutorId = tutor['id'];
     
     if (tutorId != null) {
       Navigator.push(
@@ -377,7 +350,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
         MaterialPageRoute(
           builder: (context) => TutorProfilePage(
             isOwner: false,
-            tutorId: tutorId, // Pass the tutor ID
+            tutorId: tutorId,
           ),
         ),
       );
@@ -390,7 +363,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine how many tutors to show
     final tutorsToShow = _showAllTutors 
         ? _filteredTutors 
         : (_filteredTutors.length > 5 ? _filteredTutors.sublist(0, 5) : _filteredTutors);
@@ -399,7 +371,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
       backgroundColor: const Color(0xFFF2F5FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFF305E9D),
-        automaticallyImplyLeading: false, // Remove back arrow
+        automaticallyImplyLeading: false,
         title: Row(
           children: [
             Image.asset('assets/images/ku_logo.png', height: 50),
@@ -426,7 +398,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ---------------- Search & Filters ----------------
+                      // Search & Filters
                       const Text(
                         'Search & Filters',
                         style: TextStyle(
@@ -482,7 +454,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                               onChanged: (value) {
                                 setState(() {
                                   _selectedDepartment = value;
-                                  _selectedSubject = null; // Reset subject when department changes
+                                  _selectedSubject = null;
                                   _applyFilters();
                                 });
                               },
@@ -528,7 +500,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // ---------------- Browse Tutors ----------------
+                      // Browse Tutors
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -561,7 +533,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                       ),
                       const SizedBox(height: 8),
                       
-                      // Loading state
                       if (_isLoadingTutors)
                         const Center(
                           child: Padding(
@@ -569,7 +540,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                             child: CircularProgressIndicator(),
                           ),
                         )
-                      // No tutors found
                       else if (_filteredTutors.isEmpty)
                         const Center(
                           child: Padding(
@@ -577,7 +547,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                             child: Text('No tutors match your filters'),
                           ),
                         )
-                      // Display tutors
                       else
                         SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
@@ -589,7 +558,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                                 final fullName = '$userName $lastName'.trim();
                                 final subject = tutor['subject'] ?? 'Not Specified';
                                 
-                                // Handle rate with proper null checking
                                 String rateText = 'N/A';
                                 final rateValue = tutor['rate'];
                                 if (rateValue != null && rateValue.toString().isNotEmpty && rateValue.toString() != 'null' && rateValue.toString() != 'Not Provided') {
@@ -613,56 +581,21 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                         ),
                       const SizedBox(height: 20),
 
-                      // ---------------- Demo Sessions ----------------
-                      const Text(
-                        'Demo Sessions',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      // Booked Classes
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Booked Classes (${_bookedClasses.length})',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
-                      if (_isLoadingDemoSessions)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20.0),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      else if (_demoSessions.isEmpty)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20.0),
-                            child: Text('No demo sessions available'),
-                          ),
-                        )
-                      else
-                        Column(
-                          children: _demoSessions.map((session) {
-                            final tutorName = session['tutor_name'] ?? 'Unknown';
-                            final subject = session['subject'] ?? 'Not Specified';
-                            final time = session['time'] ?? 'TBD';
-                            
-                            return SessionRow(
-                              tutor: tutorName,
-                              subject: subject,
-                              time: time,
-                              actionText: 'Book Class',
-                              onAction: () => _bookDemoSession(session),
-                            );
-                          }).toList(),
-                        ),
-                      const SizedBox(height: 20),
-
-                      // ---------------- Classes Booked ----------------
-                      const Text(
-                        'Classes Booked',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      
                       if (_isLoadingBookedClasses)
                         const Center(
                           child: Padding(
@@ -674,28 +607,67 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                         const Center(
                           child: Padding(
                             padding: EdgeInsets.all(20.0),
-                            child: Text('No classes booked yet'),
+                            child: Text('No booked classes'),
                           ),
                         )
                       else
-                        Column(
-                          children: _bookedClasses.map((booking) {
-                            final tutorName = booking['tutor_name'] ?? 'Unknown';
-                            final subject = booking['subject'] ?? 'Not Specified';
-                            final time = booking['time'] ?? 'TBD';
-                            
-                            return SessionRow(
-                              tutor: tutorName,
-                              subject: subject,
-                              time: time,
-                              actionText: 'Cancel',
-                              onAction: () => _cancelBooking(booking),
-                              isBooked: true,
-                            );
-                          }).toList(),
-                        ),
+                        ..._bookedClasses.take(3).map((booking) {
+                          final tutorName = booking['tutor_name'] ?? 'Unknown';
+                          final subject = booking['subject'] ?? 'Not Specified';
+                          final time = booking['time'] ?? 'N/A';
+                          
+                          return SessionRow(
+                            tutor: tutorName,
+                            subject: subject,
+                            time: time,
+                            actionText: 'Cancel',
+                            onAction: () => _cancelBooking(booking),
+                            isBooked: true,
+                          );
+                        }),
+                      const SizedBox(height: 20),
 
-                      const Spacer(), // fills remaining space to avoid overflow
+                      // Completed Sessions
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Completed Sessions (${_completedClasses.length})',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      if (_isLoadingCompletedClasses)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (_completedClasses.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: Text('No completed sessions yet'),
+                          ),
+                        )
+                      else
+                        ..._completedClasses.take(3).map((session) {
+                          final tutorName = session['tutor_name'] ?? 'Unknown';
+                          final subject = session['subject'] ?? 'Not Specified';
+                          final time = session['time'] ?? 'N/A';
+                          
+                          return CompletedSessionRow(
+                            tutor: tutorName,
+                            subject: subject,
+                            time: time,
+                          );
+                        }),
                     ],
                   ),
                 ),
@@ -704,8 +676,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
           },
         ),
       ),
-
-      // ---------------- Bottom Navigation ----------------
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: const Color(0xFF305E9D),
@@ -720,7 +690,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   }
 }
 
-// ---------------- Tutor Card ----------------
+// Tutor Card Widget
 class TutorCard extends StatelessWidget {
   final String tutorName;
   final String subject;
@@ -785,7 +755,7 @@ class TutorCard extends StatelessWidget {
   }
 }
 
-// ---------------- Session Row ----------------
+// Session Row Widget
 class SessionRow extends StatelessWidget {
   final String tutor;
   final String subject;
@@ -854,6 +824,71 @@ class SessionRow extends StatelessWidget {
                   child: Text(actionText, style: const TextStyle(fontSize: 12)),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Completed Session Row Widget
+class CompletedSessionRow extends StatelessWidget {
+  final String tutor;
+  final String subject;
+  final String time;
+
+  const CompletedSessionRow({
+    super.key,
+    required this.tutor,
+    required this.subject,
+    required this.time,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      color: Colors.grey[100],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tutor,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subject,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              time,
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 14,
+              ),
             ),
           ],
         ),
