@@ -557,6 +557,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                                 final lastName = tutor['user']?['last_name'] ?? '';
                                 final fullName = '$userName $lastName'.trim();
                                 final subject = tutor['subject'] ?? 'Not Specified';
+                                final isOnline = tutor['is_online'] ?? false;
                                 
                                 String rateText = 'N/A';
                                 final rateValue = tutor['rate'];
@@ -572,6 +573,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                                     tutorName: fullName,
                                     subject: subject,
                                     rate: rateText,
+                                    isOnline: isOnline,
                                     onTap: () => _viewTutorProfile(tutor),
                                   ),
                                 );
@@ -690,11 +692,12 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   }
 }
 
-// Tutor Card Widget
+// Tutor Card Widget with Online Status
 class TutorCard extends StatelessWidget {
   final String tutorName;
   final String subject;
   final String rate;
+  final bool isOnline;
   final VoidCallback onTap;
 
   const TutorCard({
@@ -702,6 +705,7 @@ class TutorCard extends StatelessWidget {
     required this.tutorName,
     required this.subject,
     required this.rate,
+    required this.isOnline,
     required this.onTap,
   });
 
@@ -714,29 +718,69 @@ class TutorCard extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         child: Column(
           children: [
-            const CircleAvatar(
-              radius: 30,
-              backgroundColor: Color(0xFF305E9D),
-              child: Icon(Icons.person, color: Colors.white),
+            Stack(
+              children: [
+                const CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Color(0xFF305E9D),
+                  child: Icon(Icons.person, color: Colors.white, size: 32),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isOnline ? Colors.green : Colors.grey,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
               tutorName,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 2),
             Text(
               subject,
+              style: const TextStyle(fontSize: 11),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 2),
             Text(
               rate,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: isOnline ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isOnline ? Colors.green : Colors.grey,
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                isOnline ? 'Online' : 'Offline',
+                style: TextStyle(
+                  color: isOnline ? Colors.green : Colors.grey,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             const SizedBox(height: 4),
             ElevatedButton(

@@ -45,7 +45,9 @@ class _TutorProfilePageState extends State<TutorProfilePage> {
     super.initState();
     _loadUserProfile();
     _loadAvailability();
-    _loadOnlineStatus();
+    if (widget.isOwner) {
+      _loadOnlineStatus();
+    }
   }
 
   Future<void> _loadOnlineStatus() async {
@@ -167,6 +169,7 @@ Future<void> _loadUserProfile() async {
           ? null 
           : _safeGetString(data['semester']);
       
+      // Load online status for public profile
       _isOnline = data['is_online'] ?? false;
     } else {
       throw Exception('No tutor ID provided for public view');
@@ -186,9 +189,11 @@ Future<void> _loadUserProfile() async {
       _isLoading = false;
     });
 
-    // Save online status to preferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_online', _isOnline);
+    // Save online status to preferences only for owner
+    if (widget.isOwner) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_online', _isOnline);
+    }
     
     // Load profile picture after updating state
     await _loadProfilePicture();
@@ -613,46 +618,46 @@ Future<void> _loadAvailability() async {
         ),
         centerTitle: true,
         actions: [
-          if (widget.isOwner)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: GestureDetector(
-                onTap: _toggleOnlineStatus,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha:0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha:0.3),
-                      width: 1,
+          // Show online status indicator in the app bar for both owner and public view
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: widget.isOwner ? _toggleOnlineStatus : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isOnline ? Colors.green : Colors.grey,
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _isOnline ? Colors.green : Colors.grey,
-                        ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isOnline ? 'Online' : 'Offline',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _isOnline ? 'Online' : 'Offline',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
         ],
       ),
       body: SafeArea(
@@ -707,7 +712,7 @@ Future<void> _loadAvailability() async {
                                 ? Container(
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.black.withValues(alpha:0.3),
+                                      color: Colors.black.withValues(alpha: 0.3),
                                     ),
                                     child: const Center(
                                       child: Icon(

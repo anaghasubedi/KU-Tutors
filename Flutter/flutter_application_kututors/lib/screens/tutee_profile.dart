@@ -292,46 +292,46 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         ),
         centerTitle: true,
         actions: [
-          if (widget.isPrivateView)
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: GestureDetector(
-                onTap: _toggleOnlineStatus,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha:0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha:0.3),
-                      width: 1,
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              // Only allow toggling if it's private view
+              onTap: widget.isPrivateView ? _toggleOnlineStatus : null,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha:0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha:0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _isOnline ? Colors.green : Colors.grey,
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _isOnline ? Colors.green : Colors.grey,
-                        ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _isOnline ? 'Online' : 'Offline',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _isOnline ? 'Online' : 'Offline',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
+          ),
         ],
       ),
       body: SafeArea(
@@ -578,7 +578,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         Expanded(
           child: widget.isPrivateView
               ? DropdownButtonFormField<String>(
-                  initialValue: validValue,
+                  value: validValue,
                   dropdownColor: const Color(0xFF8BA3C7),
                   style: const TextStyle(
                     fontSize: 16,
