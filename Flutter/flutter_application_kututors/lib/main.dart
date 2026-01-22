@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/login.dart';
-import 'package:flutter_application_kutuors/services/service_locator.dart';
+import 'package:flutter_application_kututors/services/service_locator.dart';
 
 void main() {
   services.initialize();

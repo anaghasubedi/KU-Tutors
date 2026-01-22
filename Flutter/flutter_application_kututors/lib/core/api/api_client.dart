@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'api_endpoints.dart';
 import 'api_exceptions.dart';
-import 'package:flutter_application_kutuors/core/storage/token_storage.dart';
+import 'package:flutter_application_kututors/core/storage/token_storage.dart';
 
 class ApiClient {
   final TokenStorage _tokenStorage;

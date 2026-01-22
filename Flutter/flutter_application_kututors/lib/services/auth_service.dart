@@ -1,6 +1,6 @@
-import 'package:flutter_application_kutuors/core/api/api_client.dart';
-import 'package:flutter_application_kutuors/core/api/api_endpoints.dart';
-import 'package:flutter_application_kutuors/core/storage/token_storage.dart';
+import 'package:flutter_application_kututors/core/api/api_client.dart';
+import 'package:flutter_application_kututors/core/api/api_endpoints.dart';
+import 'package:flutter_application_kututors/core/storage/token_storage.dart';
 
 class AuthService {
   final ApiClient _apiClient;

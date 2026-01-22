@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/service_locator.dart';
+import 'package:flutter_application_kututors/services/service_locator.dart';
 import 'tutee_profile.dart';
 import 'tutor_profile.dart';
 import 'browse_tutors.dart';
@@ -425,7 +425,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedDepartment,
+                              initialValue: _selectedDepartment,
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.white,
@@ -463,7 +463,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              value: _selectedSubject,
+                              initialValue: _selectedSubject,
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.white,

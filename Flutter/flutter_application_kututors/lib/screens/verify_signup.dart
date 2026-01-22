@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/service_locator.dart';
+import 'package:flutter_application_kututors/services/service_locator.dart';
 import 'tutor_home_page.dart';
 import 'tutee_home_page.dart';
 

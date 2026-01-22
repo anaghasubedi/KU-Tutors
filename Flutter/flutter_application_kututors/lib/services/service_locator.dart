@@ -1,11 +1,11 @@
 // lib/core/service_locator.dart
-import 'package:flutter_application_kutuors/services/auth_service.dart';
-import 'package:flutter_application_kutuors/services/profile_service.dart';
-import 'package:flutter_application_kutuors/services/tutor_service.dart';
-import 'package:flutter_application_kutuors/services/availability_service.dart';
-import 'package:flutter_application_kutuors/services/tutee_service.dart';
-import 'package:flutter_application_kutuors/core/api/api_client.dart';
-import 'package:flutter_application_kutuors/core/storage/token_storage.dart';
+import 'package:flutter_application_kututors/services/auth_service.dart';
+import 'package:flutter_application_kututors/services/profile_service.dart';
+import 'package:flutter_application_kututors/services/tutor_service.dart';
+import 'package:flutter_application_kututors/services/availability_service.dart';
+import 'package:flutter_application_kututors/services/tutee_service.dart';
+import 'package:flutter_application_kututors/core/api/api_client.dart';
+import 'package:flutter_application_kututors/core/storage/token_storage.dart';
 
 class ServiceLocator {
   static final ServiceLocator _instance = ServiceLocator._internal();

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/service_locator.dart';
+import 'package:flutter_application_kututors/services/service_locator.dart';
 import 'login.dart';
 import 'verify_signup.dart'; // Changed from verifyemail.dart
 

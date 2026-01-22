@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_kutuors/services/service_locator.dart';
+import 'package:flutter_application_kututors/services/service_locator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
@@ -578,7 +578,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         Expanded(
           child: widget.isPrivateView
               ? DropdownButtonFormField<String>(
-                  value: validValue,
+                  initialValue: validValue,
                   dropdownColor: const Color(0xFF8BA3C7),
                   style: const TextStyle(
                     fontSize: 16,
