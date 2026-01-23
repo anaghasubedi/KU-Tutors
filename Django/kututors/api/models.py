@@ -84,16 +84,6 @@ class TuteeProfile(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.semester}"
 
-class Session(models.Model):
-    tutor = models.ForeignKey(TutorProfile, on_delete=models.CASCADE, related_name='sessions')
-    tutee = models.ForeignKey(TuteeProfile, on_delete=models.CASCADE, related_name='sessions')
-    date = models.DateField()
-    time = models.TimeField()
-    completed = models.BooleanField(default=False)
-    
-    def __str__(self):
-        return f"{self.tutor.user.username} with {self.tutee.user.username} on {self.date}"
-
 class Availability(models.Model):
     """
     Tutor's available time slots on specific dates

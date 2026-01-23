@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import TutorProfile, TuteeProfile, Session, TemporarySignup, Availability, Booking
+from .models import TutorProfile, TuteeProfile, TemporarySignup, Availability, Booking
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 from datetime import timedelta
@@ -118,14 +118,6 @@ class TuteeProfileSerializer(serializers.ModelSerializer):
         if obj.profile_picture:
             return obj.profile_picture.url
         return None
-
-class SessionSerializer(serializers.ModelSerializer):
-    tutor = TutorProfileSerializer(read_only=True)
-    tutee = TuteeProfileSerializer(read_only=True)
-    
-    class Meta:
-        model = Session
-        fields = '__all__'
 
 class VerifyEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
