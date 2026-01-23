@@ -56,4 +56,16 @@ class TutorService {
       queryParams: queryParams,
     );
   }
+
+  Future<Map<String, dynamic>> getMyClasses() async {
+    return await _apiClient.get(ApiEndpoints.myClasses);
+  }
+
+  Future<Map<String, dynamic>> getMyTutees() async {
+    return await _apiClient.get(ApiEndpoints.myTutees);
+  }
+
+  Future<Map<String, dynamic>> getCompletedSessions() async {
+    return await _apiClient.get(ApiEndpoints.myCompletedSessions);
+  }
 }

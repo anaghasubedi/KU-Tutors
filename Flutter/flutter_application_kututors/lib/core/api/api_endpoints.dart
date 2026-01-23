@@ -27,6 +27,9 @@ class ApiEndpoints {
   
   static String tutorProfile(int tutorId) => '/tutor/$tutorId/';
   static String tutorAvailability(int tutorId) => '/tutor/$tutorId/availability/';
+static const String myClasses = '/tutor/my-classes/';
+static const String myTutees = '/tutor/my-tutees/';
+static const String myCompletedSessions = '/tutor/completed-sessions/';
 
   // Availability endpoints
   static const String availability = '/availability/';

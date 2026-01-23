@@ -47,8 +47,13 @@ urlpatterns = [
     # Tutee Booking Endpoints
     path('demo-sessions/', views.demo_sessions, name='demo_sessions'),
     path('booked-classes/', views.booked_classes, name='booked_classes'),
-    path('completed-classes/', views.completed_classes, name='completed_classes'),  # NEW
+    path('completed-classes/', views.completed_classes, name='completed_classes'),  
     path('book-demo-session/', views.book_demo_session, name='book_demo_session'),
     path('cancel-booking/<int:booking_id>/', views.cancel_booking, name='cancel_booking'),
-    path('mark-complete/<int:booking_id>/', views.mark_session_complete, name='mark_session_complete'),  # NEW
+    path('mark-complete/<int:booking_id>/', views.mark_session_complete, name='mark_session_complete'),  
+
+    #View Tutee 
+     path('tutor/my-classes/', views.my_classes, name='my_classes'),
+    path('tutor/my-tutees/', views.my_tutees, name='my_tutees'),
+    path('tutor/completed-sessions/', views.my_completed_sessions, name='my_completed_sessions'),
 ]

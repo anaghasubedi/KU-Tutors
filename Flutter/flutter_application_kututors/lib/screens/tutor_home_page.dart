@@ -14,25 +14,28 @@ class _TutorHomePageState extends State<TutorHomePage> {
   int _selectedIndex = 0;
   List<Map<String, dynamic>> _bookedClasses = [];
   List<Map<String, dynamic>> _completedSessions = [];
+  List<Map<String, dynamic>> _myTutees = [];
   bool _isLoadingBooked = true;
   bool _isLoadingCompleted = true;
+  bool _isLoadingTutees = true;
 
   @override
   void initState() {
     super.initState();
-    _loadAllSessions();
+    _loadAllData();
   }
 
-  Future<void> _loadAllSessions() async {
+  Future<void> _loadAllData() async {
     _loadBookedClasses();
     _loadCompletedSessions();
+    _loadMyTutees();
   }
 
   Future<void> _loadBookedClasses() async {
     setState(() => _isLoadingBooked = true);
     
     try {
-      final data = await services.tuteeService.getBookedClasses();
+      final data = await services.tutorService.getMyClasses();
       
       setState(() {
         _bookedClasses = List<Map<String, dynamic>>.from(data['booked_classes'] ?? []);
@@ -44,11 +47,27 @@ class _TutorHomePageState extends State<TutorHomePage> {
     }
   }
 
+  Future<void> _loadMyTutees() async {
+    setState(() => _isLoadingTutees = true);
+    
+    try {
+      final data = await services.tutorService.getMyTutees();
+      
+      setState(() {
+        _myTutees = List<Map<String, dynamic>>.from(data['tutees'] ?? []);
+        _isLoadingTutees = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading tutees: $e');
+      setState(() => _isLoadingTutees = false);
+    }
+  }
+
   Future<void> _loadCompletedSessions() async {
     setState(() => _isLoadingCompleted = true);
     
     try {
-      final data = await services.tuteeService.getCompletedClasses();
+      final data = await services.tutorService.getCompletedSessions();
       
       setState(() {
         _completedSessions = List<Map<String, dynamic>>.from(data['completed_classes'] ?? []);
@@ -88,7 +107,7 @@ class _TutorHomePageState extends State<TutorHomePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Booking cancelled successfully')),
         );
-        _loadAllSessions();
+        _loadAllData();
       }
     } catch (e) {
       debugPrint('Error cancelling booking: $e');
@@ -176,7 +195,7 @@ class _TutorHomePageState extends State<TutorHomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadAllSessions,
+            onPressed: _loadAllData,
           ),
         ],
       ),
@@ -238,6 +257,54 @@ class _TutorHomePageState extends State<TutorHomePage> {
                             isBooked: true,
                           );
                         }),
+                      const SizedBox(height: 20),
+
+                      // ---------------- My Tutees ----------------
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'My Tutees (${_myTutees.length})',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_isLoadingTutees)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (_myTutees.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: Text('No tutees yet'),
+                          ),
+                        )
+                      else
+                        SizedBox(
+                          height: 120,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _myTutees.length,
+                            itemBuilder: (context, index) {
+                              final tutee = _myTutees[index];
+                              return TuteeCard(
+                                name: tutee['name'] ?? tutee['full_name'] ?? 'Unknown',
+                                year: tutee['year']?.toString() ?? 'N/A',
+                                semester: tutee['semester']?.toString() ?? 'N/A',
+                                profileImage: tutee['profile_image'],
+                                isOnline: tutee['is_online'] ?? false,
+                              );
+                            },
+                          ),
+                        ),
                       const SizedBox(height: 20),
 
                       // ---------------- Completed Sessions ----------------
@@ -303,6 +370,102 @@ class _TutorHomePageState extends State<TutorHomePage> {
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'Log Out'),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------- Tutee Card Widget ----------------
+class TuteeCard extends StatelessWidget {
+  final String name;
+  final String year;
+  final String semester;
+  final String? profileImage;
+  final bool isOnline;
+
+  const TuteeCard({
+    super.key,
+    required this.name,
+    required this.year,
+    required this.semester,
+    this.profileImage,
+    required this.isOnline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 140,
+      margin: const EdgeInsets.only(right: 12),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: const Color(0xFF305E9D).withOpacity(0.1),
+                    backgroundImage: profileImage != null && profileImage!.isNotEmpty
+                        ? NetworkImage(profileImage!)
+                        : null,
+                    child: profileImage == null || profileImage!.isEmpty
+                        ? Text(
+                            name.isNotEmpty ? name[0].toUpperCase() : '?',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF305E9D),
+                            ),
+                          )
+                        : null,
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: isOnline ? Colors.green : Colors.grey,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Year $year / Sem $semester',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

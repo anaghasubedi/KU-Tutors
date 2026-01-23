@@ -351,3 +351,140 @@ def mark_session_complete(request, booking_id):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_classes(request):
+    """Get booked classes for tutors (tutor's view of their upcoming classes)"""
+    try:
+        if request.user.role != 'Tutor':
+            return Response(
+                {'error': 'Only tutors can access this endpoint'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get bookings for this tutor's availability slots
+        bookings = Booking.objects.filter(
+            availability__tutor=request.user.tutor_profile,
+            status='pending'  # Only pending/active bookings, not completed
+        ).select_related(
+            'availability__tutor__user',
+            'tutee__user'
+        ).order_by('availability__date', 'availability__start_time')
+        
+        booked_classes = []
+        for booking in bookings:
+            booked_classes.append({
+                'id': booking.id,
+                'tutee_name': f"{booking.tutee.user.first_name} {booking.tutee.user.last_name}".strip(),
+                'student_name': f"{booking.tutee.user.first_name} {booking.tutee.user.last_name}".strip(),
+                'tutee_id': booking.tutee.id,
+                'subject': booking.subject,
+                'date': booking.availability.date.strftime('%Y-%m-%d'),
+                'time': booking.availability.formatted_time(),
+                'scheduled_at': f"{booking.availability.formatted_date()} at {booking.availability.formatted_time()}",
+                'status': booking.status,
+                'is_demo': booking.is_demo,
+            })
+        
+        return Response({
+            'booked_classes': booked_classes,
+            'count': len(booked_classes)
+        })
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_tutees(request):
+    """Get list of unique tutees who have booked classes with this tutor"""
+    try:
+        if request.user.role != 'Tutor':
+            return Response(
+                {'error': 'Only tutors can access this endpoint'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get unique tutees who have bookings with this tutor
+        bookings = Booking.objects.filter(
+            availability__tutor=request.user.tutor_profile
+        ).select_related('tutee__user').distinct('tutee')
+        
+        tutees_data = []
+        seen_tutee_ids = set()
+        
+        for booking in bookings:
+            tutee = booking.tutee
+            if tutee.id not in seen_tutee_ids:
+                seen_tutee_ids.add(tutee.id)
+                tutees_data.append({
+                    'id': tutee.id,
+                    'name': f"{tutee.user.first_name} {tutee.user.last_name}".strip(),
+                    'full_name': f"{tutee.user.first_name} {tutee.user.last_name}".strip(),
+                    'year': tutee.year if hasattr(tutee, 'year') else 'N/A',
+                    'semester': tutee.semester if hasattr(tutee, 'semester') else 'N/A',
+                    'profile_image': tutee.user.profile_image.url if tutee.user.profile_image else None,
+                    'is_online': tutee.user.is_online if hasattr(tutee.user, 'is_online') else False,
+                })
+        
+        return Response({
+            'tutees': tutees_data,
+            'count': len(tutees_data)
+        })
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_completed_sessions(request):
+    """Get completed sessions for tutors"""
+    try:
+        if request.user.role != 'Tutor':
+            return Response(
+                {'error': 'Only tutors can access this endpoint'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get completed bookings for this tutor's availability slots
+        bookings = Booking.objects.filter(
+            availability__tutor=request.user.tutor_profile,
+            status='completed'
+        ).select_related(
+            'availability__tutor__user',
+            'tutee__user'
+        ).order_by('-completed_at', '-updated_at')
+        
+        completed_classes = []
+        for booking in bookings:
+            completed_classes.append({
+                'id': booking.id,
+                'tutee_name': f"{booking.tutee.user.first_name} {booking.tutee.user.last_name}".strip(),
+                'student_name': f"{booking.tutee.user.first_name} {booking.tutee.user.last_name}".strip(),
+                'subject': booking.subject,
+                'date': booking.availability.date.strftime('%Y-%m-%d'),
+                'time': booking.availability.formatted_time(),
+                'scheduled_at': f"{booking.availability.formatted_date()} at {booking.availability.formatted_time()}",
+                'completed_at': booking.completed_at.strftime('%B %d, %Y') if booking.completed_at else 'N/A',
+                'is_demo': booking.is_demo,
+            })
+        
+        return Response({
+            'completed_classes': completed_classes,
+            'count': len(completed_classes)
+        })
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
