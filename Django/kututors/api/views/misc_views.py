@@ -2,8 +2,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from datetime import timedelta
 from django.utils import timezone
-
+from ..models import TuteeProfile
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -56,3 +57,44 @@ def add_tutee_subjects(request):
         }, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_tutee_public_profile(request, tutee_id):
+    """Get public profile of a tutee"""
+    try:
+        tutee = TuteeProfile.objects.select_related('user').get(id=tutee_id)
+        
+        # Check if user is online (last seen within 5 minutes)
+        is_online = False
+        if tutee.user.last_seen:
+            is_online = timezone.now() - tutee.user.last_seen <= timedelta(minutes=5)
+        
+        profile_picture_url = None
+        if tutee.profile_picture:
+            profile_picture_url = request.build_absolute_uri(tutee.profile_picture.url)
+        
+        return Response({
+            'id': tutee.id,
+            'name': f"{tutee.user.first_name} {tutee.user.last_name}".strip() or tutee.user.username,
+            'email': tutee.user.email,
+            'department': tutee.department,
+            'year': tutee.year,
+            'semester': tutee.semester,
+            'profile_picture_url': profile_picture_url,
+            'is_online': is_online,
+        })
+        
+    except TuteeProfile.DoesNotExist:
+        return Response(
+            {'error': 'Tutee not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        import traceback
+        print(f"Error in get_tutee_public_profile: {str(e)}")
+        print(traceback.format_exc())
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

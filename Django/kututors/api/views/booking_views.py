@@ -3,9 +3,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from datetime import date
-
-from ..models import Availability, Booking
-
+from django.utils import timezone
+from ..models import Availability, Booking, TutorProfile, TuteeProfile
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -51,14 +50,17 @@ def booked_classes(request):
     try:
         user = request.user
         
+        auto_complete_past_sessions()
+
         if user.role == 'Tutee':
-            # Get bookings made by this tutee
+            # Get bookings made by this tutee - ONLY pending bookings, NOT completed
             bookings = Booking.objects.filter(
-                tutee=user.tutee_profile
+                tutee=user.tutee_profile,
+                status='pending'  # ← FIX: Only get pending bookings
             ).select_related(
                 'availability__tutor__user',
                 'tutee__user'
-            ).order_by('-booked_at')
+            ).order_by('availability__date', 'availability__start_time')  # Order by upcoming first
             
             booked_classes = []
             for booking in bookings:
@@ -79,13 +81,14 @@ def booked_classes(request):
             })
             
         elif user.role == 'Tutor':
-            # Get bookings for this tutor's availability slots
+            # Get bookings for this tutor's availability slots - ONLY pending bookings
             bookings = Booking.objects.filter(
-                availability__tutor=user.tutor_profile
+                availability__tutor=user.tutor_profile,
+                status='pending'  # ← FIX: Only get pending bookings
             ).select_related(
                 'availability__tutor__user',
                 'tutee__user'
-            ).order_by('-booked_at')
+            ).order_by('availability__date', 'availability__start_time')  # Order by upcoming first
             
             booked_classes = []
             for booking in bookings:
@@ -362,7 +365,9 @@ def my_classes(request):
                 {'error': 'Only tutors can access this endpoint'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+        # Auto-complete past sessions
+        auto_complete_past_sessions()
+
         # Get bookings for this tutor's availability slots
         bookings = Booking.objects.filter(
             availability__tutor=request.user.tutor_profile,
@@ -410,27 +415,41 @@ def my_tutees(request):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Get unique tutees who have bookings with this tutor
-        bookings = Booking.objects.filter(
+        # Get unique tutee IDs who have bookings with this tutor
+        tutee_ids = Booking.objects.filter(
             availability__tutor=request.user.tutor_profile
-        ).select_related('tutee__user').distinct('tutee')
+        ).values_list('tutee_id', flat=True).distinct()
+        
+        tutees = TuteeProfile.objects.filter(id__in=tutee_ids).select_related('user')
         
         tutees_data = []
-        seen_tutee_ids = set()
-        
-        for booking in bookings:
-            tutee = booking.tutee
-            if tutee.id not in seen_tutee_ids:
-                seen_tutee_ids.add(tutee.id)
-                tutees_data.append({
-                    'id': tutee.id,
-                    'name': f"{tutee.user.first_name} {tutee.user.last_name}".strip(),
-                    'full_name': f"{tutee.user.first_name} {tutee.user.last_name}".strip(),
-                    'year': tutee.year if hasattr(tutee, 'year') else 'N/A',
-                    'semester': tutee.semester if hasattr(tutee, 'semester') else 'N/A',
-                    'profile_image': tutee.user.profile_image.url if tutee.user.profile_image else None,
-                    'is_online': tutee.user.is_online if hasattr(tutee.user, 'is_online') else False,
-                })
+        for tutee in tutees:
+            # Get the full name
+            full_name = f"{tutee.user.first_name} {tutee.user.last_name}".strip()
+            if not full_name:
+                full_name = tutee.user.username
+            
+            # Get profile image from tutee profile
+            profile_image_url = None
+            if tutee.profile_picture:
+                profile_image_url = request.build_absolute_uri(tutee.profile_picture.url)
+            
+            # Check if user is online (last seen within 5 minutes)
+            is_online = False
+            if tutee.user.last_seen:
+                from datetime import timedelta
+                from django.utils import timezone
+                is_online = timezone.now() - tutee.user.last_seen <= timedelta(minutes=5)
+            
+            tutees_data.append({
+                'id': tutee.id,
+                'name': full_name,
+                'full_name': full_name,
+                'year': tutee.year,
+                'semester': tutee.semester,
+                'profile_image': profile_image_url,
+                'is_online': is_online,
+            })
         
         return Response({
             'tutees': tutees_data,
@@ -438,11 +457,13 @@ def my_tutees(request):
         })
         
     except Exception as e:
+        import traceback
+        print(f"Error in my_tutees: {str(e)}")
+        print(traceback.format_exc())
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -454,6 +475,9 @@ def my_completed_sessions(request):
                 {'error': 'Only tutors can access this endpoint'},
                 status=status.HTTP_403_FORBIDDEN
             )
+        
+        # Auto-complete past sessions
+        auto_complete_past_sessions()
         
         # Get completed bookings for this tutor's availability slots
         bookings = Booking.objects.filter(
@@ -488,3 +512,38 @@ def my_completed_sessions(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+    
+from django.utils import timezone
+from datetime import datetime
+
+def auto_complete_past_sessions():
+    """Auto-complete sessions that have passed their scheduled time"""
+
+    now = timezone.now()
+    current_date = now.date()
+    current_time = now.time()
+    
+    # Find all pending bookings where the session date has completely passed
+    past_bookings = Booking.objects.filter(
+        status='pending',
+        availability__date__lt=current_date
+    )
+    
+    # Also check for bookings today that have passed their end time
+    today_past_bookings = Booking.objects.filter(
+        status='pending',
+        availability__date=current_date,
+        availability__end_time__lt=current_time
+    )
+    
+    # Combine both querysets
+    count = 0
+    for booking in past_bookings:
+        booking.mark_completed()
+        count += 1
+    
+    for booking in today_past_bookings:
+        booking.mark_completed()
+        count += 1
+    
+    return count

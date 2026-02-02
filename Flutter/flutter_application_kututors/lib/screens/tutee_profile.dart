@@ -9,7 +9,13 @@ import 'package:http/http.dart' as http;
 
 class TuteeProfilePage extends StatefulWidget {
   final bool isPrivateView;
-  const TuteeProfilePage({super.key, this.isPrivateView = true});
+  final int? tuteeId; // Add tuteeId for public view
+  
+  const TuteeProfilePage({
+    super.key, 
+    this.isPrivateView = true,
+    this.tuteeId,
+  });
 
   @override
   State<TuteeProfilePage> createState() => _TuteeProfilePageState();
@@ -35,8 +41,78 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
   @override
   void initState() {
     super.initState();
-    _loadUserProfile();
-    _loadOnlineStatus();
+    if (widget.isPrivateView) {
+      _loadUserProfile();
+      _loadOnlineStatus();
+    } else {
+      _loadPublicProfile();
+    }
+  }
+
+  Future<void> _loadPublicProfile() async {
+    if (widget.tuteeId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Call the API to get tutee's public profile
+      final data = await services.profileService.getTuteePublicProfile(widget.tuteeId!);
+
+      setState(() {
+        _nameController.text = data['name'] ?? '';
+        _kuEmailController.text = data['email'] ?? '';
+        _phoneController.text = data['phone_number'] ?? '';
+        
+        // Normalize department values
+        String? department = data['department'];
+        if (department != null) {
+          if (department.toLowerCase().contains('computer science')) {
+            _selectedDepartment = 'CS';
+          } else if (department.toLowerCase().contains('computer engineering')) {
+            _selectedDepartment = 'CE';
+          } else {
+            _selectedDepartment = department;
+          }
+        }
+        
+        _selectedYear = data['year'];
+        _selectedSemester = data['semester'];
+        _isOnline = data['is_online'] ?? false;
+        
+        _isLoading = false;
+      });
+
+      // Load profile picture if available
+      if (data['profile_picture_url'] != null) {
+        await _loadProfilePictureFromUrl(data['profile_picture_url']);
+      }
+    } catch (e) {
+      debugPrint('Error loading public profile: $e');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load profile: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadProfilePictureFromUrl(String imageUrl) async {
+    try {
+      if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        final response = await http.get(Uri.parse(imageUrl));
+        if (response.statusCode == 200) {
+          setState(() {
+            _imageBytes = response.bodyBytes;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading profile picture from URL: $e');
+    }
   }
 
   Future<void> _loadOnlineStatus() async {
@@ -50,7 +126,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     final newStatus = !_isOnline;
     
     try {
-      // Use the profile service to update
       await services.profileService.updateProfileData(
         name: _nameController.text,
         phoneNumber: _phoneController.text,
@@ -94,7 +169,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
         _kuEmailController.text = data['email'] ?? '';
         _phoneController.text = data['phone_number'] ?? '';
         
-        // Normalize department values - convert full names to abbreviations
         String? department = data['department'];
         if (department != null) {
           if (department.toLowerCase().contains('computer science')) {
@@ -281,10 +355,16 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF4A7AB8),
         elevation: 0,
+        leading: widget.isPrivateView
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
         automaticallyImplyLeading: false,
-        title: const Text(
-          'Tutee Profile',
-          style: TextStyle(
+        title: Text(
+          widget.isPrivateView ? 'Tutee Profile' : 'Tutee Profile',
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -295,15 +375,14 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: GestureDetector(
-              // Only allow toggling if it's private view
               onTap: widget.isPrivateView ? _toggleOnlineStatus : null,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha:0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha:0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                     width: 1,
                   ),
                 ),
@@ -364,30 +443,32 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                                 : null,
                           ),
                           child: _imageBytes == null
-                              ? const Column(
+                              ? Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
-                                      Icons.add_a_photo,
+                                      widget.isPrivateView ? Icons.add_a_photo : Icons.person,
                                       size: 40,
                                       color: Colors.grey,
                                     ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Add Photo',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        color: Colors.grey,
-                                        fontWeight: FontWeight.w500,
+                                    if (widget.isPrivateView) ...[
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'Add Photo',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.w500,
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ],
                                 )
-                              : widget.isPrivateView
+                              : (widget.isPrivateView
                                   ? Container(
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
-                                        color: Colors.black.withValues(alpha:0.3),
+                                        color: Colors.black.withValues(alpha: 0.3),
                                       ),
                                       child: const Center(
                                         child: Icon(
@@ -397,7 +478,7 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                                         ),
                                       ),
                                     )
-                                  : null,
+                                  : null),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -410,27 +491,37 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
                         enabled: false,
                       ),
                       const SizedBox(height: 22),
-                      _buildEditableField('Phone no', _phoneController),
-                      const SizedBox(height: 12),
+                      
+                      // Only show phone for private view
+                      if (widget.isPrivateView) ...[
+                        _buildEditableField('Phone no', _phoneController),
+                        const SizedBox(height: 12),
+                      ],
                       
                       _buildDropdownField('Department', _selectedDepartment, _departments, (value) {
-                        setState(() {
-                          _selectedDepartment = value;
-                        });
+                        if (widget.isPrivateView) {
+                          setState(() {
+                            _selectedDepartment = value;
+                          });
+                        }
                       }),
                       const SizedBox(height: 12),
                       
                       _buildDropdownField('Year', _selectedYear, _years, (value) {
-                        setState(() {
-                          _selectedYear = value;
-                        });
+                        if (widget.isPrivateView) {
+                          setState(() {
+                            _selectedYear = value;
+                          });
+                        }
                       }),
                       const SizedBox(height: 12),
                       
                       _buildDropdownField('Semester', _selectedSemester, _semesters, (value) {
-                        setState(() {
-                          _selectedSemester = value;
-                        });
+                        if (widget.isPrivateView) {
+                          setState(() {
+                            _selectedSemester = value;
+                          });
+                        }
                       }),
                       const SizedBox(height: 32),
 
@@ -555,7 +646,6 @@ class _TuteeProfilePageState extends State<TuteeProfilePage> {
     List<String> options,
     ValueChanged<String?> onChanged,
   ) {
-    // Ensure selectedValue is in the options list, otherwise set to null
     String? validValue = selectedValue;
     if (selectedValue != null && !options.contains(selectedValue)) {
       validValue = null;

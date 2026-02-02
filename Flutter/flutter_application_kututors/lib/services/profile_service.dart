@@ -81,4 +81,10 @@ class ProfileService {
     await _apiClient.delete(ApiEndpoints.deleteAccount);
     await _tokenStorage.deleteToken();
   }
+
+  Future<Map<String, dynamic>> getTuteePublicProfile(int tuteeId) async {
+  return await _apiClient.get(
+    ApiEndpoints.tuteePublicProfile(tuteeId),
+  );
+}
 }

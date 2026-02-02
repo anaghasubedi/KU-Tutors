@@ -41,11 +41,16 @@ from .booking_views import (
     book_demo_session,
     cancel_booking,
     mark_session_complete,
+    my_classes,
+    my_completed_sessions,
+    my_tutees,
+    auto_complete_past_sessions,
 )
 
 from .misc_views import (
     set_online_status,
     add_tutee_subjects,
+    get_tutee_public_profile,
 )
 
 __all__ = [
@@ -87,8 +92,13 @@ __all__ = [
     'book_demo_session',
     'cancel_booking',
     'mark_session_complete',
+    'my_classes',
+    'my_completed_sessions',
+    'my_tutees',
+    'auto_complete_past_sessions',
     
     # Misc views
     'set_online_status',
     'add_tutee_subjects',
+    'get_tutee_public_profile',
 ]

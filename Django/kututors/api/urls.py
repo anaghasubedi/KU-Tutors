@@ -56,4 +56,5 @@ urlpatterns = [
      path('tutor/my-classes/', views.my_classes, name='my_classes'),
     path('tutor/my-tutees/', views.my_tutees, name='my_tutees'),
     path('tutor/completed-sessions/', views.my_completed_sessions, name='my_completed_sessions'),
+    path('tutee/<int:tutee_id>/profile/', views.get_tutee_public_profile, name='get_tutee_public_profile'),
 ]

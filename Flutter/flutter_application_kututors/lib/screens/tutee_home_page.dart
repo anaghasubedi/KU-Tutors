@@ -616,12 +616,14 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                         ..._bookedClasses.take(3).map((booking) {
                           final tutorName = booking['tutor_name'] ?? 'Unknown';
                           final subject = booking['subject'] ?? 'Not Specified';
+                          final date = booking['date'] ?? 'N/A';
                           final time = booking['time'] ?? 'N/A';
+                          final scheduledAt = booking['scheduled_at'] ?? '$date at $time';
                           
                           return SessionRow(
                             tutor: tutorName,
                             subject: subject,
-                            time: time,
+                            time: scheduledAt,
                             actionText: 'Cancel',
                             onAction: () => _cancelBooking(booking),
                             isBooked: true,
@@ -662,12 +664,14 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                         ..._completedClasses.take(3).map((session) {
                           final tutorName = session['tutor_name'] ?? 'Unknown';
                           final subject = session['subject'] ?? 'Not Specified';
+                          final date = session['date'] ?? 'N/A';
                           final time = session['time'] ?? 'N/A';
+                          final scheduledAt = session['scheduled_at'] ?? '$date at $time';
                           
                           return CompletedSessionRow(
                             tutor: tutorName,
                             subject: subject,
-                            time: time,
+                            time: scheduledAt,
                           );
                         }),
                     ],
@@ -762,31 +766,11 @@ class TutorCard extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: isOnline ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isOnline ? Colors.green : Colors.grey,
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                isOnline ? 'Online' : 'Offline',
-                style: TextStyle(
-                  color: isOnline ? Colors.green : Colors.grey,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
             ElevatedButton(
               onPressed: onTap,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF305E9D),
+                    foregroundColor: Colors.white,
                 minimumSize: const Size.fromHeight(30),
                 padding: const EdgeInsets.symmetric(vertical: 4),
               ),

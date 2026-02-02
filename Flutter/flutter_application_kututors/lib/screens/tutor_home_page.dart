@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_kututors/services/service_locator.dart';
 import 'tutor_profile.dart';
+import 'tutee_profile.dart'; 
 import 'login.dart';
 
 class TutorHomePage extends StatefulWidget {
@@ -33,12 +34,14 @@ class _TutorHomePageState extends State<TutorHomePage> {
 
   Future<void> _loadBookedClasses() async {
     setState(() => _isLoadingBooked = true);
-    
+
     try {
       final data = await services.tutorService.getMyClasses();
-      
+
       setState(() {
-        _bookedClasses = List<Map<String, dynamic>>.from(data['booked_classes'] ?? []);
+        _bookedClasses = List<Map<String, dynamic>>.from(
+          data['booked_classes'] ?? [],
+        );
         _isLoadingBooked = false;
       });
     } catch (e) {
@@ -49,10 +52,10 @@ class _TutorHomePageState extends State<TutorHomePage> {
 
   Future<void> _loadMyTutees() async {
     setState(() => _isLoadingTutees = true);
-    
+
     try {
       final data = await services.tutorService.getMyTutees();
-      
+
       setState(() {
         _myTutees = List<Map<String, dynamic>>.from(data['tutees'] ?? []);
         _isLoadingTutees = false;
@@ -65,12 +68,14 @@ class _TutorHomePageState extends State<TutorHomePage> {
 
   Future<void> _loadCompletedSessions() async {
     setState(() => _isLoadingCompleted = true);
-    
+
     try {
       final data = await services.tutorService.getCompletedSessions();
-      
+
       setState(() {
-        _completedSessions = List<Map<String, dynamic>>.from(data['completed_classes'] ?? []);
+        _completedSessions = List<Map<String, dynamic>>.from(
+          data['completed_classes'] ?? [],
+        );
         _isLoadingCompleted = false;
       });
     } catch (e) {
@@ -102,7 +107,7 @@ class _TutorHomePageState extends State<TutorHomePage> {
 
     try {
       await services.tuteeService.cancelBooking(booking['id']);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Booking cancelled successfully')),
@@ -112,9 +117,9 @@ class _TutorHomePageState extends State<TutorHomePage> {
     } catch (e) {
       debugPrint('Error cancelling booking: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to cancel booking: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to cancel booking: $e')));
       }
     }
   }
@@ -149,9 +154,9 @@ class _TutorHomePageState extends State<TutorHomePage> {
         );
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Logout failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
       }
     }
   }
@@ -240,18 +245,20 @@ class _TutorHomePageState extends State<TutorHomePage> {
                         )
                       else
                         ..._bookedClasses.take(3).map((booking) {
-                          final tuteeName = booking['tutee_name'] ?? 
-                                          booking['student_name'] ?? 
-                                          'Unknown';
+                          final tuteeName =
+                              booking['tutee_name'] ??
+                              booking['student_name'] ??
+                              'Unknown';
                           final subject = booking['subject'] ?? 'Not Specified';
-                          final time = booking['time'] ?? 
-                                      booking['scheduled_at'] ?? 
-                                      'N/A';
-                          
+                          final date = booking['date'] ?? 'N/A';
+                          final time = booking['time'] ?? 'N/A';
+                          final scheduledAt =
+                              booking['scheduled_at'] ?? '$date at $time';
+
                           return SessionRow(
                             tutee: tuteeName,
                             subject: subject,
-                            time: time,
+                            time: scheduledAt,
                             actionText: 'Cancel',
                             onAction: () => _cancelBooking(booking),
                             isBooked: true,
@@ -289,18 +296,34 @@ class _TutorHomePageState extends State<TutorHomePage> {
                         )
                       else
                         SizedBox(
-                          height: 120,
+                          height: 190,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             itemCount: _myTutees.length,
                             itemBuilder: (context, index) {
                               final tutee = _myTutees[index];
                               return TuteeCard(
-                                name: tutee['name'] ?? tutee['full_name'] ?? 'Unknown',
+                                tuteeId: tutee['id'] ?? 0,
+                                name:
+                                    tutee['name'] ??
+                                    tutee['full_name'] ??
+                                    'Unknown',
                                 year: tutee['year']?.toString() ?? 'N/A',
-                                semester: tutee['semester']?.toString() ?? 'N/A',
+                                semester:
+                                    tutee['semester']?.toString() ?? 'N/A',
                                 profileImage: tutee['profile_image'],
                                 isOnline: tutee['is_online'] ?? false,
+                                onViewProfile: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => TuteeProfilePage(
+                                        isPrivateView: false,
+                                        tuteeId: tutee['id'],
+                                      ),
+                                    ),
+                                  );
+                                },
                               );
                             },
                           ),
@@ -337,18 +360,20 @@ class _TutorHomePageState extends State<TutorHomePage> {
                         )
                       else
                         ..._completedSessions.take(3).map((session) {
-                          final tuteeName = session['tutee_name'] ?? 
-                                          session['student_name'] ?? 
-                                          'Unknown';
+                          final tuteeName =
+                              session['tutee_name'] ??
+                              session['student_name'] ??
+                              'Unknown';
                           final subject = session['subject'] ?? 'Not Specified';
-                          final time = session['time'] ?? 
-                                      session['scheduled_at'] ?? 
-                                      'N/A';
-                          
+                          final date = session['date'] ?? 'N/A';
+                          final time = session['time'] ?? 'N/A';
+                          final scheduledAt =
+                              session['scheduled_at'] ?? '$date at $time';
+
                           return CompletedSessionRow(
                             tutee: tuteeName,
                             subject: subject,
-                            time: time,
+                            time: scheduledAt,
                           );
                         }),
 
@@ -382,6 +407,8 @@ class TuteeCard extends StatelessWidget {
   final String semester;
   final String? profileImage;
   final bool isOnline;
+  final int tuteeId;
+  final VoidCallback? onViewProfile;
 
   const TuteeCard({
     super.key,
@@ -390,18 +417,19 @@ class TuteeCard extends StatelessWidget {
     required this.semester,
     this.profileImage,
     required this.isOnline,
+    required this.tuteeId,
+    this.onViewProfile,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 140,
+      height: 180,
       margin: const EdgeInsets.only(right: 12),
       child: Card(
         elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
@@ -410,16 +438,17 @@ class TuteeCard extends StatelessWidget {
               Stack(
                 children: [
                   CircleAvatar(
-                    radius: 28,
-                    backgroundColor: const Color(0xFF305E9D).withOpacity(0.1),
-                    backgroundImage: profileImage != null && profileImage!.isNotEmpty
+                    radius: 24,
+                    backgroundColor: const Color(0xFF305E9D).withValues(alpha: 0.1),
+                    backgroundImage:
+                        profileImage != null && profileImage!.isNotEmpty
                         ? NetworkImage(profileImage!)
                         : null,
                     child: profileImage == null || profileImage!.isEmpty
                         ? Text(
                             name.isNotEmpty ? name[0].toUpperCase() : '?',
                             style: const TextStyle(
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF305E9D),
                             ),
@@ -430,8 +459,8 @@ class TuteeCard extends StatelessWidget {
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      width: 14,
-                      height: 14,
+                      width: 12,
+                      height: 12,
                       decoration: BoxDecoration(
                         color: isOnline ? Colors.green : Colors.grey,
                         shape: BoxShape.circle,
@@ -441,27 +470,44 @@ class TuteeCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 name,
                 style: const TextStyle(
                   fontWeight: FontWeight.w600,
-                  fontSize: 14,
+                  fontSize: 13,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 'Year $year / Sem $semester',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 11),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 28,
+                child: ElevatedButton(
+                  onPressed: onViewProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF305E9D),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'View Profile',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
               ),
             ],
           ),
@@ -512,10 +558,7 @@ class SessionRow extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subject,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                 ],
               ),
@@ -525,16 +568,18 @@ class SessionRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  time,
-                  style: const TextStyle(fontSize: 14),
-                ),
+                Text(time, style: const TextStyle(fontSize: 14)),
                 const SizedBox(height: 4),
                 ElevatedButton(
                   onPressed: onAction,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isBooked ? Colors.red : const Color(0xFF305E9D),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    backgroundColor: isBooked
+                        ? Colors.red
+                        : const Color(0xFF305E9D),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     minimumSize: const Size(80, 25),
                   ),
                   child: Text(actionText, style: const TextStyle(fontSize: 12)),
@@ -570,11 +615,7 @@ class CompletedSessionRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            const Icon(
-              Icons.check_circle,
-              color: Colors.green,
-              size: 24,
-            ),
+            const Icon(Icons.check_circle, color: Colors.green, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -590,22 +631,13 @@ class CompletedSessionRow extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subject,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              time,
-              style: TextStyle(
-                color: Colors.grey[700],
-                fontSize: 14,
-              ),
-            ),
+            Text(time, style: TextStyle(color: Colors.grey[700], fontSize: 14)),
           ],
         ),
       ),
