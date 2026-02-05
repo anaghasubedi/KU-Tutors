@@ -143,6 +143,13 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 DEFAULT_FROM_EMAIL = 'noreply@kututors.com'
 AUTH_USER_MODEL = 'api.CustomUser'
+
+# settings.py
+EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
+EMAIL_PORT = 2525
+EMAIL_HOST_USER = '063655c3d1a7ef'  
+EMAIL_HOST_PASSWORD = '8ce69e4ffc3621'  
+DEFAULT_FROM_EMAIL = 'noreply@kututors.com'  

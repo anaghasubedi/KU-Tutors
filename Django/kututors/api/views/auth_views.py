@@ -27,12 +27,25 @@ def signup(request):
     if serializer.is_valid():
         temp_signup = serializer.save()
         
-        # Print verification code to console
-        print("=" * 50)
-        print(f"SIGNUP VERIFICATION CODE FOR: {temp_signup.email}")
-        print(f"CODE: {temp_signup.verification_code}")
-        print(f"EXPIRES IN: 15 minutes")
-        print("=" * 50)
+        # Send verification email
+        try:
+            send_mail(
+                subject='Email Verification Code - KU Tutors',
+                message=f'Hello {temp_signup.first_name},\n\nYour verification code is: {temp_signup.verification_code}\n\nThis code will expire in 15 minutes.\n\nThank you!',
+                from_email=None,
+                recipient_list=[temp_signup.email],
+                html_message=f'''
+                    <h2>Verify Your Email</h2>
+                    <p>Hello {temp_signup.first_name},</p>
+                    <p>Your verification code is: <strong>{temp_signup.verification_code}</strong></p>
+                    <p>This code will expire in 15 minutes.</p>
+                    <p>Thank you!</p>
+                ''',
+                fail_silently=False,
+            )
+            print(f"Verification email sent to {temp_signup.email}")
+        except Exception as e:
+            print(f"Failed to send email: {str(e)}")
         
         return Response({
             'email': temp_signup.email,
@@ -178,24 +191,24 @@ def forgot_password(request):
     user.verification_code = code
     user.save()
     
-    # ALWAYS print to console for development
-    print("=" * 50)
-    print(f"PASSWORD RESET CODE FOR: {email}")
-    print(f"CODE: {code}")
-    print("=" * 50)
-    
-    # Try to send email
+    # Send password reset email
     try:
         send_mail(
-            subject="Password Reset Code - KU Tutors",
-            message=f"Hello {user.first_name},\n\nYour password reset code is: {code}\n\nThank you!",
+            subject='Password Reset Code - KU Tutors',
+            message=f'Hello {user.first_name},\n\nYour password reset code is: {code}\n\nThank you!',
             from_email=None,
             recipient_list=[user.email],
+            html_message=f'''
+                <h2>Password Reset</h2>
+                <p>Hello {user.first_name},</p>
+                <p>Your password reset code is: <strong>{code}</strong></p>
+                <p>Thank you!</p>
+            ''',
             fail_silently=False,
         )
-        print("Email sent successfully!")
+        print(f"Password reset email sent to {email}")
     except Exception as e:
-        print(f"Email sending failed: {str(e)}")
+        print(f"Failed to send email: {str(e)}")
     
     return Response({'message': 'Verification code sent to your email'}, status=status.HTTP_200_OK)
 
