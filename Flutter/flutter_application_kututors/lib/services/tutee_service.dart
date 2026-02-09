@@ -36,7 +36,7 @@ class TuteeService {
     );
   }
 
-  /// Mark a session as complete (for tutors)
+  /// Mark a session as complete
   Future<Map<String, dynamic>> markSessionComplete(int bookingId) async {
     return await _apiClient.post(
       ApiEndpoints.markSessionComplete(bookingId),
@@ -44,7 +44,7 @@ class TuteeService {
     );
   }
 
-  /// Add subjects for tutee (optional method for future use)
+  /// Add subjects for tutee
   Future<Map<String, dynamic>> addSubjects({
     String? subjectRequired,
     String? semester,

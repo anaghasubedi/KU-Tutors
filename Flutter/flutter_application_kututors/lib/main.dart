@@ -46,7 +46,7 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      home: const LoginPage(), // Login screen is now used
+      home: const LoginPage(), 
     );
   }
 }
