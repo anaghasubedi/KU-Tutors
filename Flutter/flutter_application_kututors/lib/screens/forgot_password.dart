@@ -212,7 +212,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 14,
-                          decoration: TextDecoration.underline,
                         ),
                       ),
                     ),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_kututors/services/service_locator.dart';
 import 'tutee_profile.dart';
 import 'tutor_profile.dart';
-import 'browse_tutors.dart';
 import 'login.dart';
 
 class TuteeHomePage extends StatefulWidget {
@@ -21,7 +20,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
   bool _isLoadingTutors = true;
   bool _isLoadingBookedClasses = true;
   bool _isLoadingCompletedClasses = true;
-  final bool _showAllTutors = false;
   
   // Filter controllers
   final TextEditingController _searchController = TextEditingController();
@@ -363,9 +361,7 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final tutorsToShow = _showAllTutors 
-        ? _filteredTutors 
-        : (_filteredTutors.length > 5 ? _filteredTutors.sublist(0, 5) : _filteredTutors);
+    final tutorsToShow = _filteredTutors;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F5FA),
@@ -511,24 +507,6 @@ class _TuteeHomePageState extends State<TuteeHomePage> {
                               fontSize: 16,
                             ),
                           ),
-                          if (_filteredTutors.length > 5)
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const BrowseTutorsPage(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                'Show More',
-                                style: TextStyle(
-                                  color: Color(0xFF305E9D),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
                         ],
                       ),
                       const SizedBox(height: 8),
