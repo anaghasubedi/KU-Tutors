@@ -312,48 +312,6 @@ def cancel_booking(request, booking_id):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def mark_session_complete(request, booking_id):
-    """Mark a session as completed (for tutors)"""
-    try:
-        if request.user.role != 'Tutor':
-            return Response(
-                {'error': 'Only tutors can mark sessions as complete'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        try:
-            booking = Booking.objects.select_related('availability').get(id=booking_id)
-        except Booking.DoesNotExist:
-            return Response(
-                {'error': 'Booking not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        # Verify this is the tutor's booking
-        if booking.availability.tutor.user != request.user:
-            return Response(
-                {'error': 'You can only mark your own sessions as complete'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Mark as completed
-        booking.mark_completed()
-        
-        return Response({
-            'message': 'Session marked as completed',
-            'booking_id': booking.id,
-            'completed_at': booking.completed_at.strftime('%B %d, %Y at %I:%M %p') if booking.completed_at else None
-        }, status=status.HTTP_200_OK)
-        
-    except Exception as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
     
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

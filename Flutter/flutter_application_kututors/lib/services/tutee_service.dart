@@ -35,15 +35,6 @@ class TuteeService {
       ApiEndpoints.cancelBooking(bookingId),
     );
   }
-
-  /// Mark a session as complete
-  Future<Map<String, dynamic>> markSessionComplete(int bookingId) async {
-    return await _apiClient.post(
-      ApiEndpoints.markSessionComplete(bookingId),
-      body: {},
-    );
-  }
-
   /// Add subjects for tutee
   Future<Map<String, dynamic>> addSubjects({
     String? subjectRequired,
